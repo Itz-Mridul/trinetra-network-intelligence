@@ -1,0 +1,1736 @@
+================================================================================
+PiProbe: CALIBRATED CROSS-LAYER DIAGNOSIS OF INDOOR WI-FI AND WAN FAULTS
+USING LOW-COST DISTRIBUTED PROBES
+Literature Review, Feasibility Assessment, and Research Design Report
+================================================================================
+Prepared: October 13, 2026
+Target venue under evaluation: IEEE I2MTC 2027 (primary) + two backups (see Section 8)
+
+--------------------------------------------------------------------------------
+HOW TO READ THIS REPORT / VERIFICATION METHODOLOGY
+--------------------------------------------------------------------------------
+This report was produced using live web search against IEEE Xplore-indexed
+conference pages, ACM/Springer/HAL/arXiv paper pages, IEEE DataPort, GitHub,
+Espressif's own product pages, and official conference CFP sites. Every system,
+paper, or dataset below is tagged:
+
+  [VERIFIED]   - a real, located source with a confirmable title, author(s),
+                 venue, year, and URL/DOI, used as evidence below.
+  [UNVERIFIED] - named in your brief but NOT located in public search under
+                 that exact name. Per your instructions, these are flagged
+                 and NOT used as evidence. Where a plausible near-match
+                 exists, it is named separately and clearly marked as a
+                 different, independently-verified system.
+
+Two of the nine systems you asked me to compare against could not be verified
+under the names given:
+  - "WiSlow"     -> ACTUALLY VERIFIED. This is a real IEEE INFOCOM 2014 paper
+                     (see Section B). Good catch on your part.
+  - "RAID"       -> ACTUALLY VERIFIED. Real ECML PKDD 2025 paper with public
+                     GitHub code (see Section B).
+  - "LabWiFiMon" -> NOT FOUND under this exact name in IEEE Xplore, ACM DL,
+                     Google Scholar-indexed venues, or GitHub. The closest
+                     verified real system is "WiFiMon" (GEANT/GN4-3, European
+                     NREN service) - named and used instead, clearly marked.
+                     If you have a specific DOI/URL for a distinct "LabWiFiMon"
+                     paper, send it and I will fold it in; until then it is
+                     excluded as evidence per your own instructions.
+
+No DOIs, authors, or results below are invented. Where I could not fully verify
+a secondary claim (e.g., a paper I know of only through another paper's
+reference list, not independently fetched), I say so explicitly.
+
+================================================================================
+A. EXECUTIVE SUMMARY
+================================================================================
+PiProbe's central idea - a Raspberry Pi wired "truth" anchor plus several
+cheap ESP32 Wi-Fi probes, feeding a calibrated cross-layer fault classifier
+that separates Wi-Fi, LAN, WAN/ISP, DNS, and probe-health problems - is
+publishable, but NOT because of the dashboard, the MQTT pipeline, or the
+low hardware cost. Those are 2014-era solved problems (Wi-Pi, UNINETT,
+CheesePi, Netrics, Internet-Pi all did low-cost Pi-based distributed
+Wi-Fi/broadband measurement with time-series dashboards, years ago, and
+several are still-maintained open-source projects). Reviewers in 2027 will
+recognize the architecture pattern on sight and will not award novelty for it.
+
+What is NOT yet solved, and what a rigorous PiProbe paper can credibly claim,
+is narrower and more specific:
+
+  1. A validated, calibrated mapping from cheap-microcontroller measurements
+     (ESP32 RSSI, local RTT/jitter/loss, WAN latency/DNS/HTTP) to a labeled,
+     multi-class fault taxonomy, with reported measurement uncertainty and
+     confidence intervals - not just raw signal collection. Most prior
+     low-cost Pi/ESP32 systems (Wi-Pi, Netrics, CheesePi, Internet-Pi,
+     WiFiMon) measure and visualize; they do not calibrate RSSI against
+     ground truth or attach confidence to a diagnosis.
+  2. A controlled, repeatable fault-injection protocol run on real household/
+     building infrastructure (not a Faraday-cage lab testbed) with ground-
+     truth labels, enabling supervised and rule-based baselines to be
+     compared head-to-head with reported false-ISP-alarm rate and detection
+     delay - metrics almost nobody in your comparison set reports.
+  3. Explicit treatment of "probe fault" as its own diagnostic class (the
+     measuring instrument can itself fail - power loss, clock drift, Wi-Fi
+     disassociation) - a category that is conspicuously absent from every
+     comparable system found, including the very recent WITNESS/"Toward
+     Realistic Wi-Fi Fault Diagnosis" benchmark (2026).
+  4. An honest, quantified account of ESP32 measurement limitations
+     (board-to-board RSSI variance, enclosure/antenna effects, 1-antenna
+     ESP32-C5 ceiling on Wi-Fi 6 gains) feeding directly into the model's
+     reported uncertainty, rather than hidden in a "future work" line.
+
+What is already solved and must NOT be claimed as a contribution: low-cost
+Pi-based Wi-Fi/broadband monitoring (solved since 2014); MQTT+InfluxDB/
+SQLite+Grafana telemetry pipelines (standard, commodity engineering, used by
+at least four systems below); room-level/indoor Wi-Fi heatmapping from
+RSSI (solved, including specifically with ESP32s in monitor mode); separating
+"is it Wi-Fi or is it the ISP" at a basic level (yslow, a free CLI tool,
+already does this from a single host); and SHAP-style explainability applied
+to black-box fault classifiers (a mature, borrowed technique from predictive-
+maintenance and telecom RCA literature, not novel in itself).
+
+The single biggest competitive risk is a dataset paper that appears to have
+been published within the last few months of this writing: "Toward Realistic
+Wi-Fi Fault Diagnosis: A Multi-Modal Benchmark" and its accompanying WITNESS
+dataset (Zhang et al., Central South University / Tohoku University,
+arXiv 2026, IEEE DataPort). It does almost exactly what Sections 6-9 of your
+brief ask for - automated fault injection, >10,000 labeled samples, a unified
+benchmark across detection/classification/localization, even an LLM-based
+explainability evaluation - on a real (if campus-scale, not residential)
+Wi-Fi testbed. PiProbe MUST cite this paper and differentiate explicitly
+(see Section D) or a reviewer will cite it for you, unfavorably.
+
+India-specific deployment: by itself, close to zero added research value as a
+headline claim - Wi-Pi itself was deployed and evaluated at IIT Hyderabad in
+2014, so "built and tested in India" is not new. It becomes a real (modest)
+contribution only if reframed as infrastructure/ISP diversity: nearly every
+comparable system was deployed in the US, EU, or China (Netrics-Chicago,
+CheesePi-Sweden, WiFiMon-Europe, RAID-France, WITNESS-China); documenting how
+a different last-mile/ISP/power environment changes fault distributions or
+probe reliability is a legitimate, citable, small dataset-diversity
+contribution. "India" as a flag on the title is not; "cross-infrastructure
+generalization including a non-Western residential ISP environment" as a
+stated limitation-turned-contribution is.
+
+Bottom line (expanded in Section M): the core idea clears the publishability
+bar, but the project as described reads as still in the design phase - no
+pilot dataset, no completed fault-injection trials are mentioned in your
+brief. Recommendation: CONTINUE EXPERIMENTS, not submit now, and treat the
+I2MTC 2027 full-paper deadline (Dec 4, 2026 - see Section 8) as realistic
+ONLY if hardware and a pilot data pass are already substantially underway
+outside this conversation.
+
+================================================================================
+B. LITERATURE / SYSTEM COMPARISON TABLE
+================================================================================
+Columns: System | Year | Platform | Measurements | Diagnosis capability |
+Dataset | Limitation (vs. PiProbe's goals) | PiProbe difference | Verified link
+
+--------------------------------------------------------------------------------
+1. Wi-Pi [VERIFIED]
+--------------------------------------------------------------------------------
+Year/Venue    : 2014, ACM AINTEC (Asian Internet Engineering Conference)
+Authors       : D. Bhardwaj, V. Kumar (IIT Hyderabad, India)
+Platform      : Multiple distributed Raspberry Pis (client-side)
+Measurements  : Wi-Fi signal quality, packet loss, latency
+Diagnosis     : None beyond visualization - produces a geographic Wi-Fi
+                signal-quality heat map; does not classify fault cause.
+Dataset       : Not released as an open/public labeled dataset.
+Limitation    : No fault taxonomy, no ground truth, no ML/statistical
+                classification, no calibration procedure reported, no WAN/
+                DNS layer. A follow-on paper from an overlapping author group
+                extends this to a Pi + smartphone hybrid for multi-floor
+                heatmaps, same limitations.
+PiProbe diff. : PiProbe adds cross-layer fault classification, calibration,
+                controlled injection, and an open labeled dataset - none of
+                which Wi-Pi has. Note: Wi-Pi was ALSO built and deployed in
+                India (IIT Hyderabad), which undercuts "India deployment" as
+                a standalone novelty claim for PiProbe.
+Link          : https://publications.iith.ac.in/publication/wi-pi-distributed-wi-fi-performance-assessment-using-raspberry-pi
+
+--------------------------------------------------------------------------------
+2. Netrics (Internet Equity Initiative / Internet Innovation Initiative,
+   University of Chicago) [VERIFIED]
+--------------------------------------------------------------------------------
+Year/Venue    : Deployed from 2021-present; open-source, actively maintained.
+                No single conference paper found in this search; evidenced
+                via the project's own data-story pages, GitHub orgs
+                (internet-equity/netrics, internet-equity/nm-exp-active-netrics)
+                and the University of Chicago's public research portal.
+Platform      : Raspberry Pi, deployed in real households.
+Measurements  : Continuous active measurements: speedtest-style throughput,
+                latency, and (per the project's own framing) a documented
+                finding that home Wi-Fi is frequently the bottleneck, not the
+                ISP link.
+Diagnosis     : Framework for running modular measurement "tests," not a
+                fault classifier. Grafana dashboards, not cause attribution.
+Dataset       : YES - continuously published, documented, Creative-Commons-
+                licensed dataset (internet-innovation/netrics-data on GitHub),
+                used for digital-divide / broadband-equity research, not fault
+                diagnosis research.
+Limitation    : No controlled fault injection (observational only), no fault
+                taxonomy/labels, no Wi-Fi PHY-layer instrumentation (RSSI,
+                channel) beyond what the Pi's own interface reports, no ESP32
+                distributed probes - single device per household.
+PiProbe diff. : PiProbe adds multi-probe in-building spatial resolution
+                (room-level), controlled/labeled fault injection, and
+                explicit Wi-Fi-vs-LAN-vs-WAN classification rather than
+                observational time series.
+Link          : https://internetequity.cs.uchicago.edu/data-story/a-tale-of-two-gigs
+                https://github.com/internet-equity/netrics (code)
+                https://github.com/internet-innovation/netrics-data (data)
+
+--------------------------------------------------------------------------------
+3. CheesePi [VERIFIED]
+--------------------------------------------------------------------------------
+Year/Venue    : 2017, IEEE (demo paper), Stockholm, Sweden. IEEE Xplore
+                document 8264886, "A lightweight measurement platform for
+                home internet monitoring."
+Platform      : Always-on lightweight home measurement node (Pi-class).
+Measurements  : Active home-network measurements correlated into a dashboard
+                combining several Swedish measurement sources.
+Diagnosis     : None - explicitly a measurement/visualization demo, not a
+                diagnosis system.
+Dataset       : Not released as an open labeled fault dataset in what is
+                findable publicly.
+Limitation    : No Wi-Fi-layer instrumentation at all (WAN/home-gateway
+                focus only), no classification, no ESP32/distributed
+                in-building probes, demo-paper depth (6 pages or fewer).
+PiProbe diff. : PiProbe adds the entire Wi-Fi/room-level layer that
+                CheesePi lacks, plus classification and calibration.
+Link          : https://ieeexplore.ieee.org/document/8264886/metrics
+
+--------------------------------------------------------------------------------
+4. Internet-Pi (geerlingguy/internet-pi, GitHub) [VERIFIED]
+--------------------------------------------------------------------------------
+Year/Venue    : Ongoing open-source project (Jeff Geerling), NOT a peer-
+                reviewed publication of any kind.
+Platform      : Single Raspberry Pi 4+.
+Measurements  : Speedtest.net results, HTTP uptime/ping, optional Pi-hole
+                DNS ad-block/local-DNS stats.
+Diagnosis     : None - Prometheus + Grafana dashboards only.
+Dataset       : None published as a research dataset.
+Limitation    : This is pure hobbyist engineering tooling, not research. No
+                Wi-Fi probes, no fault classes, no ground truth, no
+                statistical evaluation of any kind, no academic claims made
+                by its author.
+PiProbe diff. : Everything beyond "a Grafana dashboard on a Pi" - fault
+                classification, calibration, controlled experiments, a
+                taxonomy, an evaluation methodology - is PiProbe's addition.
+                This entry exists specifically to make the point in your
+                brief explicit: a Grafana/MQTT dashboard like this is an
+                ENGINEERING artifact, not research novelty, however well
+                built.
+Link          : https://github.com/geerlingguy/internet-pi
+
+--------------------------------------------------------------------------------
+5. WiSlow [VERIFIED - matches your list; you had the right name]
+--------------------------------------------------------------------------------
+Year/Venue    : 2014, IEEE INFOCOM (DOI 10.1109/infocom.2014.6848014)
+Authors       : Kyung-Hwa Kim, Hyunwoo Nam, Henning Schulzrinne (Columbia
+                University)
+Platform      : End-user client-side tool (not distributed Pi/ESP32 probes).
+Measurements  : Client-observable Wi-Fi/network performance signals.
+Diagnosis     : YES - explicitly a "Wi-Fi Network Performance Troubleshooting
+                Tool for End Users"; from the same Columbia group's related
+                work (DYSWIS, IEEE ICCCN 2014, "Crowdsourcing a Home Network
+                Diagnosis," Kim/Nam/Singh/Song/Schulzrinne) the methodology
+                family is explicitly about separating Wi-Fi vs LAN vs WAN
+                root causes via distributed/crowdsourced probing.
+Dataset       : Not found as an open public dataset.
+Limitation    : Single end-host vantage point (WiSlow) or crowdsourced
+                volunteer hosts (DYSWIS), not calibrated fixed-location
+                probes; 2014-era client hardware/software, not ESP32;
+                no explicit WAN/DNS/HTTP decomposition at the fidelity your
+                brief requests; no reported RSSI calibration (end-host OS
+                RSSI, not raw radio).
+PiProbe diff. : PiProbe's fixed, calibrated, room-level probes plus explicit
+                WAN/DNS/HTTP sub-layer metrics are a methodological upgrade
+                on the same underlying problem statement WiSlow/DYSWIS
+                already targeted in 2014 - meaning this "Wi-Fi vs LAN vs WAN"
+                cross-layer idea is over a decade old, not a gap, and PiProbe
+                must be framed as improving measurement rigor on an old
+                problem, not discovering a new one.
+Link          : DOI 10.1109/infocom.2014.6848014 (indexed via
+                research.amanote.com; original list also at
+                https://cs.columbia.edu/irt/publications?tag=DYSWIS)
+
+--------------------------------------------------------------------------------
+6. Machine-learning Wi-Fi troubleshooting systems - represented by Syrigos,
+   Sakellariou, Keranidis, Korakis, "On the employment of machine learning
+   techniques for troubleshooting wifi networks," IEEE CCNC 2019
+   [VERIFIED via RAID's reference list, not independently fetched in full -
+   title/venue/year confirmed, abstract not independently read]
+   Also: Gallo & Garlisi, "Wi-Dia: Data-Driven Wireless Diagnostic Using
+   Context Recognition," IEEE RTSI 2018, DOI 10.1109/RTSI.2018.8548453
+   [VERIFIED, abstract read in full]
+--------------------------------------------------------------------------------
+Year/Venue    : 2018 (Wi-Dia, IEEE RTSI) and 2019 (Syrigos et al., IEEE CCNC)
+Platform      : Wi-Dia: testbed access points/stations in a large European
+                wireless testbed (not low-cost distributed consumer probes).
+Measurements  : Wi-Dia: features tied to network topology and channel
+                utilization, collected without disrupting normal operation.
+Diagnosis     : Wi-Dia classifies interference pathologies in real time using
+                ML (jointly trained on simulated + experimental data) and is
+                explicitly framed as root-cause/context recognition, i.e.
+                "why is performance bad," not just "is it bad."
+Dataset       : Not found as a public open dataset for either.
+Limitation    : Wi-Dia addresses Wi-Fi-internal interference classes only
+                (not WAN/DNS/router); evaluated on a research testbed, not
+                low-cost commodity hardware; no reported per-device RSSI
+                calibration methodology comparable to what your brief asks
+                for.
+PiProbe diff. : PiProbe's taxonomy is broader (adds WAN/DNS/HTTP/probe-health
+                classes Wi-Dia does not cover) but PiProbe cannot claim "first
+                ML-based Wi-Fi fault classifier" - that claim would be flatly
+                false and immediately citable against by a reviewer who knows
+                Wi-Dia or Syrigos et al.
+Links         : https://iris.unipa.it/handle/10447/356874 (Wi-Dia, full
+                abstract verified)
+                Syrigos et al. citation confirmed via RAID's own reference
+                list (see system 9 below) - recommend independently
+                verifying the full abstract before citing in your paper.
+
+--------------------------------------------------------------------------------
+7. "Classification of home network problems with transformers" - Dotterl &
+   Hemmati Fard, ACM SAC 2024 [VERIFIED via RAID's reference list only -
+   title/venue/year confirmed, not independently fetched]
+--------------------------------------------------------------------------------
+Year/Venue    : 2024, ACM/SIGAPP Symposium on Applied Computing (SAC)
+Diagnosis     : Transformer-based classification of home-network problems -
+                directly on-topic for PiProbe's ML baseline comparison, and
+                very recent (2024), meaning it is a live, current competitor
+                in the specific "classify my home network problem with a
+                modern deep model" niche.
+Limitation    : Not independently verified beyond title/venue/year in this
+                search pass - recommend pulling the full paper via ACM DL
+                before citing it in a submission, to confirm input features,
+                dataset, and reported metrics precisely rather than relying
+                on a secondary citation.
+PiProbe diff. : If confirmed, this is a close, very recent competitor for the
+                "classify home-network problems with a learned model" claim
+                specifically, and should be the first paper PiProbe's authors
+                read in full before finalizing their own ML baseline design.
+
+--------------------------------------------------------------------------------
+8. RAID: Root cause Anomaly Identification and Diagnosis [VERIFIED - full
+   text obtained; matches your list, you had the right name]
+--------------------------------------------------------------------------------
+Year/Venue    : 2025, ECML PKDD (European Conference on Machine Learning and
+                Principles and Practice of Knowledge Discovery in Databases),
+                Porto, Portugal, pp. 438-455, DOI
+                10.1007/978-3-662-72243-5_25, HAL id hal-05219367
+Authors       : Joel Roman Ky, Bertrand Mathieu, Abdelkader Lahmadi, Minqi
+                Wang, Nicolas Marrot, Raouf Boutaba (Universite de Lorraine/
+                CNRS/Inria/LORIA, University of Luxembourg, Orange
+                Innovation, University of Waterloo)
+Platform      : Controlled lab testbed using Faraday cages, RF attenuators,
+                a commercial "Livebox" (Orange's home gateway/AP), an NVIDIA
+                CloudXR server, and a Meta Quest 2 - NOT low-cost distributed
+                ESP32/Pi probes; this is carrier-operator-grade lab
+                equipment, closer to "WAN/vendor lab" than "consumer home."
+Measurements  : 112 time-series KPI features pulled from the access point
+                every 3 seconds (RSSI/RSRP, airtime/channel utilization,
+                retry rates, MCS/bitrate stats), application-level Cloud-VR
+                QoS metrics, raw packet captures.
+Diagnosis     : Two-stage ML pipeline: (1) contrastive-learning anomaly
+                detector (built on the authors' own prior "CATS" method) that
+                needs NO labels for the normal-vs-anomalous step, then (2) a
+                lightweight supervised classifier (SVM/logistic regression)
+                to name the specific impairment. Three classes evaluated:
+                Normal, Coverage (signal attenuation), Interference
+                (competing traffic).
+Dataset       : 13,657 labeled time-series windows (9,524 train / 4,133
+                test), Cloud-VR-specific; public code at
+                https://github.com/joelromanky/raid (dataset availability
+                not separately confirmed in this pass - check the repo).
+Reported perf.: Accuracy 81.83% (+/-2.96), F1 81.60% (+/-3.05), beating
+                1-NN-DTW, T-Loss, TS2Vec, TS-TCC, iForest, USAD, and SimCLR
+                baselines on their own benchmark; authors themselves report a
+                real weakness - the model struggles to separate "Coverage"
+                from "Normal" (many Coverage windows misclassified as
+                Normal), i.e. the hardest, most PiProbe-relevant fault class
+                (gradual signal degradation) is exactly where RAID is
+                weakest.
+Limitation    : Only 3 impairment classes (no LAN/DNS/HTTP/probe-health, no
+                ISP-outage class); evaluated in a single Cloud-VR use case on
+                operator-grade hardware in Faraday cages - the opposite
+                deployment regime from PiProbe's "cheap and in a real
+                building" goal; authors explicitly list "home networks where
+                multiple sources of impairment coexist" as their OWN stated
+                future work.
+PiProbe diff. : PiProbe operates in exactly the messier, uncontrolled,
+                multi-impairment real-home/building regime RAID's authors
+                say they have NOT yet done. PiProbe's taxonomy is wider
+                (adds WAN/DNS/HTTP/probe faults entirely absent from RAID),
+                and its hardware is two orders of magnitude cheaper than a
+                Livebox + CloudXR rig. PiProbe should cite RAID as the
+                closest recent ML methodology precedent and as the source of
+                a directly reusable evaluation-metric vocabulary (weighted P/
+                R/F1, accuracy, "normalized accuracy") while being explicit
+                that it targets a different (harder-to-control, more
+                realistic) deployment regime.
+Link          : https://orbilu.uni.lu/bitstream/10993/66323/1/preprint_ecml_pkdd_2025_ads_265%20%281%29.pdf
+                https://github.com/joelromanky/raid
+
+--------------------------------------------------------------------------------
+9. Recent multi-modal Wi-Fi fault-diagnosis benchmark - "Toward Realistic
+   Wi-Fi Fault Diagnosis: A Multi-Modal Benchmark" + WITNESS dataset
+   [VERIFIED] - THIS IS THE MOST IMPORTANT ENTRY IN THIS TABLE
+--------------------------------------------------------------------------------
+Year/Venue    : arXiv preprint, 2026 (arXiv id 2605.22008 -> dated May 2026
+                by arXiv's own YYMM numbering; publication venue beyond
+                arXiv not confirmed in this pass - check for a camera-ready
+                venue before citing as "forthcoming at X").
+Authors       : Junjian Zhang, Haobo Deng, Xinxin Li, Ming Zhao, Fengxiao
+                Tang, Nei Kato (Central South University; Nei Kato also
+                affiliated with Tohoku University per a closely related
+                follow-up paper).
+Dataset name  : WITNESS - "A Multi-Modal Wi-Fi Fault Diagnosis Dataset,"
+                IEEE DataPort, DOI 10.21227/wg2q-ek03, submitted by Junjian
+                Zhang.
+Platform      : Real-world Wi-Fi testbed deployed in campus working
+                environments, with an AUTOMATED fault-injection system (not
+                a Faraday-cage lab, closer in spirit to "real building" than
+                RAID, though still campus/enterprise rather than residential).
+Measurements  : Synchronized performance metrics, packet-trace features,
+                warning events, and runtime monitoring logs - explicitly
+                "heterogeneous cross-layer operational observations," i.e.
+                multiple modalities, which is exactly the framing your brief
+                uses for PiProbe.
+Diagnosis     : A unified benchmark spanning THREE tasks - fault detection
+                (binary), fault classification (multi-class), fault
+                localization (which node) - plus a fourth, newer task:
+                evaluating LLM-generated diagnostic explanations for
+                consistency with actual network conditions (a reasoning-
+                level explainability benchmark, going beyond SHAP-style
+                feature attribution).
+Dataset scale : The benchmark paper states ">10,000 fault samples." A related
+                follow-up paper (PropLLM, Wu/Zhao/Tang/Kato, Central South
+                University & Tohoku University, arXiv 2606.00582, June 2026)
+                describes using "the Wi-Fi Multimodal Fault Benchmark
+                dataset," built on 3 Basic Service Sets and 21 nodes in an
+                AP-STA tree topology, with "approximately 600 fault cases
+                covering 11 fault types and 1 normal state." NOTE: the
+                ">10,000 samples" figure and the "~600 fault cases" figure
+                are NOT reconciled in what I could read - they may refer to
+                raw windows vs distinct injected episodes, or to different
+                dataset releases/subsets. Flag this discrepancy explicitly
+                if you cite exact scale numbers; verify directly against the
+                IEEE DataPort release before quoting a figure in your paper.
+Fault types   : Per the IEEE DataPort abstract: hardware, software, MAC-
+                layer, association, and congestion-related failures, across
+                infrastructure AND ad hoc deployment scenarios, with both
+                human-to-human (H2H) and IoT traffic patterns.
+Reported findings: The benchmark paper's own headline finding is that
+                "effectively leveraging heterogeneous operational data
+                remains challenging for existing diagnosis approaches" -
+                i.e., even with rich multi-modal data, current methods
+                (including LLM-based ones) are NOT yet solving this well.
+                This is good news for PiProbe's publishability case (there
+                is a real, current, acknowledged gap) and bad news for any
+                claim that "a cross-layer approach easily beats single-layer
+                baselines" - the evidence from this closest comparator says
+                it does not, easily.
+Open-source   : YES - "accompanying documentation and open-source benchmark
+                implementation" stated in the IEEE DataPort listing.
+Limitation (vs PiProbe): Campus/enterprise Wi-Fi testbed, not residential;
+                no WAN/ISP/DNS/HTTP layer at all (Wi-Fi-and-below only, per
+                the fault-type list); no ESP32 or sub-$10 probe hardware
+                angle; no explicit RSSI calibration/measurement-uncertainty
+                treatment of the kind your brief asks for; India/non-Western
+                deployment not applicable.
+PiProbe diff. : This is PiProbe's closest and most dangerous competitor. The
+                differentiation that survives scrutiny: (a) PiProbe adds the
+                entire WAN/ISP/DNS/HTTP layer that WITNESS's fault taxonomy
+                omits entirely; (b) PiProbe targets residential/low-cost
+                deployment vs WITNESS's campus/enterprise Wi-Fi testbed;
+                (c) PiProbe explicitly treats probe-hardware calibration and
+                probe self-fault as first-class concerns, which neither
+                WITNESS nor RAID do. PiProbe should NOT claim to be "the
+                first open multi-modal Wi-Fi fault dataset" - that claim now
+                belongs to WITNESS, published before PiProbe. PiProbe can
+                credibly claim to be the first that is (i) WAN-inclusive and
+                (ii) built on sub-$15 commodity microcontroller probes with a
+                reported calibration procedure.
+Links         : https://arxiv.org/pdf/2605.22008 (benchmark paper)
+                https://ieee-dataport.org/documents/witness-multi-modal-wi-fi-fault-diagnosis-dataset
+                (DOI 10.21227/wg2q-ek03)
+                https://arxiv.org/pdf/2606.00582 (PropLLM follow-up, uses the
+                same/related dataset with hop-by-hop LLM reasoning over a
+                knowledge graph - relevant to your explainability goal)
+
+--------------------------------------------------------------------------------
+10. "LabWiFiMon" [UNVERIFIED under this name] -> closest real match: WiFiMon
+    (GEANT / GN4-3 project) [VERIFIED]
+--------------------------------------------------------------------------------
+Year/Venue    : Ongoing GEANT (pan-European research/education network)
+                production service, launched under the GN4-3 project; cited
+                in GEANT/APNIC blog posts and conference infoshares, 2021-
+                2023; not a single peer-reviewed paper, but a documented,
+                operated open-source service - comparable in evidentiary
+                weight to Internet-Pi, i.e. real and usable as a comparator
+                but not as a "paper."
+Platform      : Hybrid - combines (a) crowdsourced end-user measurements
+                (triggered when users visit a WiFiMon-enabled page or run a
+                WiFiMon-enabled app) with (b) small-form-factor hardware
+                probes at fixed locations, used specifically to cross-check
+                the crowdsourced data.
+Measurements  : Download/upload throughput, HTTP RTT, plus (from the fixed
+                hardware probes) signal strength, bit rate, link quality;
+                in eduroam/802.1X deployments it additionally correlates
+                with RADIUS/DHCP logs to attribute problems to specific
+                access points.
+Diagnosis     : Identifies underperforming areas of a Wi-Fi network for
+                admins to act on (e.g., "add an AP here"); this is spatial/
+                coverage triage, not a labeled multi-class fault classifier
+                with WAN/DNS/HTTP separation.
+Dataset       : Not found as an open public research dataset (it is an
+                operational NREN service, not a research artifact).
+Limitation    : No ESP32-class low-cost probe (campus/NREN-grade hardware
+                probes), no controlled fault injection, no ML classification,
+                no reported RSSI calibration methodology, no open dataset.
+PiProbe diff. : PiProbe's calibration, controlled injection, taxonomy, and
+                open dataset are all absent from WiFiMon. This entry stands
+                in for your "LabWiFiMon" comparison point; please confirm
+                whether you meant WiFiMon, or send the specific source if a
+                distinct "LabWiFiMon" system exists - I do not want to
+                silently substitute one system for another without you
+                knowing I did it, which is why this substitution is called
+                out this explicitly.
+Link          : https://blog.apnic.net/2021/11/08/wifimon-monitoring-wi-fi-network-performance-from-the-end-user-perspective/
+                https://network.geant.org/wp-content/uploads/2023/05/Wifimon-Leaflet-May-5.pdf
+
+
+================================================================================
+C. FEATURE NOVELTY MATRIX
+================================================================================
+Columns: Feature | Existing prior art (from Section B) | Novelty level |
+Keep / Remove / Modify for the paper's CONTRIBUTION claims (engineering
+features can still be KEPT in the system - "Remove" here means "do not claim
+it as a research contribution," not "do not build it")
+
+--------------------------------------------------------------------------------
+Feature: Raspberry Pi wired aggregator + several ESP32 distributed Wi-Fi
+         probes (hybrid, two-tier hardware architecture)
+Prior art: Wi-Pi and UNINETT used multiple Pis (not cheaper ESP32s) as the
+         distributed probes; Netrics/CheesePi/Internet-Pi use a single Pi
+         per household, not a multi-probe in-building fleet.
+Novelty: LOW-MODERATE. The two-tier Pi-anchor + ESP32-fleet pattern itself is
+         a sensible, cheap engineering design, but "use cheaper MCUs as
+         probes" is a cost optimization, not a new measurement capability.
+Verdict: MODIFY. Keep the architecture; do not claim architectural novelty.
+         Frame it as enabling the room-level density needed for the
+         calibration/localization contribution (below), not as a
+         contribution in its own right.
+--------------------------------------------------------------------------------
+Feature: MQTT (Mosquitto) + InfluxDB/SQLite + Grafana telemetry pipeline
+Prior art: Functionally equivalent stacks (Prometheus/Grafana, or similar)
+         already in Netrics, Internet-Pi, CheesePi, WiFiMon.
+Novelty: NONE. This is commodity, off-the-shelf systems integration.
+Verdict: REMOVE from any novelty/contribution claim. State it in the system-
+         architecture section as implementation detail only. A reviewer who
+         sees "Grafana dashboard" listed as a contribution will discount the
+         whole paper's judgment.
+--------------------------------------------------------------------------------
+Feature: Room/floor-level Wi-Fi signal-quality mapping (heat map), using
+         room IDs instead of GPS
+Prior art: Wi-Pi produces a geographic heat map; a separate verified paper
+         ("Influence of Measured Radio Map Interpolation on Indoor
+         Positioning Algorithms," IEEE Sensors Journal) explicitly uses five
+         ESP32 microcontrollers in monitor mode to build indoor Wi-Fi radio
+         maps and studies interpolation strategies to reduce how many
+         physical measurement points are needed.
+Novelty: LOW. Indoor radio mapping with ESP32s specifically has already been
+         done and published. "Room ID instead of GPS" is the obvious,
+         standard choice for any indoor system (GPS does not work indoors)
+         and is not a contribution by itself.
+Verdict: MODIFY. Useful as a supporting visualization and as a way to label
+         "where" a fault is, but do not claim heat-mapping itself as novel.
+--------------------------------------------------------------------------------
+Feature: Cross-layer fault classification - separating Wi-Fi coverage,
+         interference, congestion, LAN/router, WAN/ISP, DNS, and probe
+         faults from one integrated signal set
+Prior art: WiSlow/DYSWIS (2014) already target Wi-Fi vs LAN vs WAN
+         separation; Wi-Dia (2018) classifies Wi-Fi interference causes
+         with ML; RAID (2025) and WITNESS/multi-modal benchmark (2026) both
+         do multi-class ML fault classification on richer feature sets than
+         most prior work.
+Novelty: MODERATE, conditional on execution. The IDEA of cross-layer
+         separation is over a decade old (WiSlow/DYSWIS). What nobody in
+         Section B does is combine (i) this full breadth of layers
+         including WAN/DNS/HTTP, AND (ii) calibrated low-cost probes, AND
+         (iii) controlled fault injection with ground truth, AND (iv)
+         reported confidence/uncertainty, in one evaluated system. The
+         combination, done rigorously, is defensible; any single piece of
+         it, alone, is not.
+Verdict: KEEP as the paper's central claim, but frame it explicitly as "a
+         more rigorously measured and more broadly-scoped instance of a
+         well-established cross-layer diagnosis problem," not as a new
+         problem.
+--------------------------------------------------------------------------------
+Feature: Controlled, repeatable fault-injection procedure
+Prior art: RAID injects impairments via RF attenuators inside Faraday cages
+         (lab-grade, operator hardware); WITNESS/multi-modal benchmark uses
+         an "automated fault injection system" on a real campus Wi-Fi
+         testbed (closer to PiProbe's spirit, but still not residential,
+         and not on sub-$15 hardware).
+Novelty: MODERATE. Controlled injection itself is not new (both direct
+         competitors already do it), but doing it on commodity ESP32
+         probes, in uncontrolled real-building RF environments (not a
+         Faraday cage, not a dedicated campus AP-STA tree), with reported
+         repeatability/measurement uncertainty, is a genuinely less-explored
+         regime.
+Verdict: KEEP, with explicit framing against RAID and WITNESS as the "closer
+         to a real messy home/building" alternative to their more
+         controlled settings - this is your most defensible single novelty
+         claim if the data backs it up.
+--------------------------------------------------------------------------------
+Feature: Open, labeled fault dataset
+Prior art: WITNESS (IEEE DataPort, DOI 10.21227/wg2q-ek03) is open, labeled,
+         multi-modal, and recent (2026) - directly overlapping in intent.
+Novelty: LOW-MODERATE given WITNESS already exists. An open dataset is still
+         valuable (more data, different deployment regime, different
+         hardware, is good for the field and citable), but "we are
+         releasing the first open Wi-Fi fault dataset" is now FALSE and
+         must not be claimed.
+Verdict: MODIFY the framing to "a WAN-inclusive, low-cost-hardware
+         complement to existing Wi-Fi-only fault benchmarks (WITNESS,
+         RAID)," not "the first" anything.
+--------------------------------------------------------------------------------
+Feature: Explainable ML (e.g., SHAP) layered on the fault classifier
+Prior art: SHAP is the dominant, well-established XAI technique across fault
+         diagnosis generally (multiple review papers found, spanning
+         industrial FDD, predictive maintenance, optical-network QoT
+         estimation, and mobile-network RCA at telecom operators such as a
+         published SHAP-based clustering approach for mobile-network RCA).
+         In Wi-Fi fault diagnosis specifically, the most recent and most
+         sophisticated explainability work is NOT SHAP-based: WITNESS's
+         companion PropLLM paper (2026) uses an LLM with a dual-layer
+         knowledge graph and a "Temporal Causal Propagation Attention"
+         mechanism for hop-by-hop causal explanation, explicitly aimed at
+         reducing hallucination versus naive LLM explanations.
+Novelty: LOW as a technique (SHAP is borrowed, mature, off-the-shelf).
+         MODERATE as an application, IF paired with calibrated confidence
+         intervals specific to low-cost-sensor measurement noise, which is
+         not something existing XAI-for-networking papers emphasize.
+Verdict: MODIFY. Use SHAP (or an equivalently simple, well-validated method)
+         for a 6-page first paper - do not attempt to out-engineer PropLLM's
+         LLM/knowledge-graph approach in a first paper; that is a much
+         larger follow-on project. Explicitly cite PropLLM as the current
+         state of the art in Wi-Fi-diagnosis explainability and position
+         SHAP-plus-calibrated-uncertainty as the appropriately-scoped first
+         step, not as beating PropLLM.
+--------------------------------------------------------------------------------
+Feature: India-specific deployment
+Prior art: Wi-Pi was deployed and evaluated in India (IIT Hyderabad) in
+         2014. Nearly every other system in Section B was deployed in the
+         US, EU, or China.
+Novelty: VERY LOW as a geographic label (not new - Wi-Pi got there first,
+         eleven years earlier). POTENTIALLY MODERATE if reframed as
+         infrastructure/ISP/power-grid diversity and explicitly measured
+         (e.g., characterizing probe uptime under local power conditions,
+         ISP-specific DNS/WAN behavior) rather than asserted by nationality.
+Verdict: REMOVE "India" as a headline novelty claim. MODIFY into a stated
+         external-validity / generalization contribution: "evaluated under
+         a residential ISP and power environment distinct from the
+         US/EU/China deployments common in prior work," with actual data
+         to back the claim (e.g., probe downtime attributable to power
+         events, measured ISP jitter/loss characteristics).
+--------------------------------------------------------------------------------
+Feature: Probe self-fault detection (the measuring device itself fails:
+         power loss, clock drift, Wi-Fi disassociation of the probe)
+Prior art: NOT found as an explicit labeled class in ANY of the nine
+         compared systems, including RAID and WITNESS.
+Novelty: MODERATE-HIGH relative to this specific comparison set - this
+         appears to be a genuine, if modest, gap. It is easy to overlook
+         because it requires the system to reason about its own
+         instrumentation's reliability, which none of the compared papers
+         foreground.
+Verdict: KEEP. This is a small but real and clean novelty claim: cheap
+         probes fail more often than lab-grade hardware, and a system that
+         is supposed to tell a non-expert "is it your Wi-Fi or your ISP"
+         had better not silently misattribute its own probe's death to
+         "ISP outage." Make this an explicit fault class with its own
+         precision/recall, not a footnote.
+--------------------------------------------------------------------------------
+Feature: Measurement uncertainty / confidence intervals attached to
+         diagnoses
+Prior art: Not reported as a first-class output in any compared system
+         (RAID and WITNESS report model accuracy/F1 with run-to-run
+         standard deviations across experiments, which is good practice,
+         but neither attaches a confidence/uncertainty value to each
+         individual live diagnosis the way a calibrated instrument should).
+Novelty: MODERATE-HIGH. This is the "senior IEEE researcher" angle your
+         brief itself points to: proving the system can correctly identify
+         fault causes through CALIBRATED measurements, not just accuracy
+         on a held-out test set.
+Verdict: KEEP. This should be treated as co-equal with the fault taxonomy
+         as PiProbe's central technical contribution.
+--------------------------------------------------------------------------------
+
+================================================================================
+D. RESEARCH-GAP STATEMENT
+================================================================================
+Established by this literature review, 2014-2026, prioritizing 2020-2026:
+
+WHAT IS ALREADY SOLVED (do not re-claim):
+  - Low-cost, distributed, Pi-based Wi-Fi/broadband measurement with
+    time-series dashboards (Wi-Pi 2014; UNINETT; CheesePi 2017; Netrics
+    2021-present; Internet-Pi, ongoing).
+  - Basic Wi-Fi-vs-LAN-vs-WAN layer separation for troubleshooting (WiSlow/
+    DYSWIS 2014; even a free CLI tool, yslow, does this today from one host).
+  - ML-based classification of Wi-Fi interference/impairment causes on
+    research or carrier-grade testbeds (Wi-Dia 2018; RAID 2025; WITNESS/
+    multi-modal benchmark 2026).
+  - Open, labeled, multi-modal Wi-Fi fault datasets with automated injection
+    (WITNESS, 2026 - this is very recent and directly competing).
+  - Indoor Wi-Fi radio/heat mapping, including specifically with ESP32s in
+    monitor mode (IEEE Sensors Journal paper, A-WEAR/ORIENTATE-funded).
+  - SHAP-based explainability for fault diagnosis generally, including in
+    telecom/mobile-network RCA specifically (multiple reviews; a published
+    SHAP-based mobile-network RCA clustering paper).
+
+WHAT IS NOT YET SOLVED (credible gaps):
+  - A fault-diagnosis system that is simultaneously (a) WAN/ISP/DNS/HTTP-
+    inclusive (not Wi-Fi-only, unlike WITNESS and Wi-Dia), (b) built on
+    sub-$15 commodity microcontroller probes (not Livebox/CloudXR-grade
+    like RAID, not campus-AP-grade like WITNESS), and (c) evaluated with a
+    reported, calibrated measurement-uncertainty budget rather than only a
+    point-estimate accuracy.
+  - Explicit treatment of probe/instrument self-failure as a diagnostic
+    class, so the system does not silently blame the ISP for its own dead
+    battery.
+  - Controlled fault injection carried out in real, uncontrolled-RF-
+    environment buildings (not a Faraday cage, not a dedicated lab AP-STA
+    tree) with reported false-ISP-alarm rate and detection delay - these
+    two specific metrics, which your brief names explicitly, are essentially
+    absent from the systems found in this search.
+  - Any dataset or system in this search deployed and characterized under a
+    South/South-Asian residential ISP and power environment (every
+    comparator is US/EU/China) - a legitimate, if secondary, generalization
+    gap.
+
+WHICH PROPOSED PIPROBE FEATURES ARE NOT NOVEL (repeat, for emphasis - see
+Section C for full detail): the hardware architecture pattern, the
+MQTT/InfluxDB/Grafana pipeline, room-level heat-mapping, basic Wi-Fi/LAN/WAN
+layer separation as an idea, and SHAP as a technique are all pre-existing.
+
+WHICH CLAIMS WOULD BE REJECTED AS EXAGGERATED if made in a submitted paper:
+  - "First system to distinguish Wi-Fi, LAN, and WAN faults" - false by 11
+    years (WiSlow/DYSWIS, 2014).
+  - "First open Wi-Fi fault-diagnosis dataset" - false by however many
+    months separate PiProbe's submission from WITNESS's 2026 release.
+  - "First ML-based Wi-Fi fault classifier" - false (Wi-Dia 2018, RAID 2025,
+    WITNESS's benchmark 2026).
+  - "Novel distributed low-cost Wi-Fi probe architecture" - false as stated;
+    Wi-Pi, Netrics, CheesePi, Internet-Pi all precede it.
+  - Any claim that frames the MQTT/Grafana/InfluxDB pipeline itself as a
+    contribution.
+  - Any claim that geographic deployment in India is itself a research
+    contribution, unstated and unmeasured.
+
+IS CROSS-LAYER DIAGNOSIS USING LOW-COST COMMODITY PROBES GENUINELY
+PUBLISHABLE? Yes, conditionally. The problem (cross-layer Wi-Fi/LAN/WAN/DNS
+diagnosis) is old; the specific combination of commodity-microcontroller
+hardware, explicit calibration/uncertainty reporting, controlled injection
+in realistic (non-lab, non-campus) buildings, and a probe-self-fault class
+is not yet published together anywhere found in this search. This is an
+INCREMENTAL, MEASUREMENT-SCIENCE-FLAVORED contribution appropriate for a
+venue like IEEE I2MTC (whose own scope is explicitly measurement
+methodology and calibration, not networking novelty for its own sake) -
+not a systems/networking breakthrough appropriate for, say, SIGCOMM or
+NSDI. Match the ambition of the claims to I2MTC's actual bar, which rewards
+rigor and calibration over conceptual novelty.
+
+DOES AN INDIA-SPECIFIC DEPLOYMENT ADD MEANINGFUL RESEARCH VALUE, OR ONLY
+GEOGRAPHIC CONTEXT? Only geographic context, UNLESS it is operationalized as
+an infrastructure-diversity variable with actual measurements (ISP
+characteristics, power-related probe downtime, construction-material RF
+effects) reported and discussed, in which case it becomes a small, genuine,
+citable generalization contribution. As currently stated in your brief
+("India-specific deployment") it reads as context, not contribution.
+
+================================================================================
+E. FINAL RESEARCH QUESTIONS AND HYPOTHESES
+================================================================================
+Problem statement (final): Low-cost distributed Wi-Fi probes can collect
+cross-layer network telemetry cheaply, but it is not established whether
+such commodity-microcontroller measurements can be calibrated and combined
+with wired-baseline and WAN-layer signals to produce a fault diagnosis that
+is both accurate AND trustworthy (i.e., accompanied by a defensible
+uncertainty estimate) across Wi-Fi, LAN, WAN/ISP, DNS, and probe-health
+fault classes, in real (not lab-controlled) indoor RF environments.
+
+--------------------------------------------------------------------------------
+RQ1 (primary): Can a calibrated, low-cost ESP32-probe-plus-Pi-anchor
+architecture achieve fault-classification accuracy (macro-F1) comparable to
+published ML Wi-Fi root-cause systems (e.g., RAID's ~82% accuracy / ~81.6%
+F1 on a 3-class problem) across a WIDER fault taxonomy (Wi-Fi + LAN + WAN +
+DNS + probe-health, 7+ classes)?
+  H1: A cross-layer feature set (Wi-Fi PHY + local RTT/jitter/loss + WAN
+      latency/DNS/HTTP) achieves significantly higher macro-F1 than any
+      single-layer subset (Wi-Fi-only, or WAN-only) baseline, at p<0.05
+      over repeated trials, with the effect size (F1 delta) reported
+      alongside significance.
+  Falsifiable null: cross-layer fusion gives no significant F1 improvement
+      over the best single-layer baseline (a real, scientifically useful
+      possible outcome - WITNESS's own headline finding is that leveraging
+      heterogeneous data remains hard, so H1's null is a live possibility,
+      not a strawman).
+
+RQ2: Does per-device RSSI calibration (correcting for board-to-board
+offset and enclosure/antenna attenuation) measurably reduce misclassification
+of coverage-type faults, the class every comparator system (notably RAID)
+finds hardest?
+  H2: Per-device-calibrated RSSI reduces the Coverage<->Normal confusion-
+      matrix off-diagonal mass by a significant margin versus uncalibrated
+      raw RSSI, holding the rest of the pipeline fixed (an ablation, not a
+      new model).
+
+RQ3: Does the diagnosis model generalize across rooms, time-of-day/week, and
+(if a second building is included - see Section 7/M) across buildings,
+without significant accuracy loss, or is it overfit to its training
+deployment?
+  H3: Cross-room and cross-time macro-F1 will be measurably lower than
+      in-distribution (same-room, same-time-window) macro-F1 - this is
+      EXPECTED to show some degradation; the research question is how much,
+      and whether calibration (H2) narrows that gap. Report both numbers
+      plainly even if generalization is weak; a negative or mixed result
+      here is still a valid, reportable finding given your brief's emphasis
+      on rigor over a flattering headline number.
+
+RQ4: Can the system explicitly separate "probe fault" from "ISP fault" with
+acceptably low false-ISP-alarm rate, i.e., does adding a probe-health class
+reduce the rate at which a dead/disconnected probe is misreported as an
+ISP outage, relative to a system without that class?
+  H4: Adding an explicit probe-health class to the taxonomy significantly
+      lowers the false-ISP-alarm rate compared to an ablated model trained
+      without that class (where probe failures are forced into the nearest
+      other category).
+
+RQ5 (secondary/stretch - only if time allows, see Section 7 scope
+recommendation): Does a SHAP-based explanation of the classifier's decisions
+remain faithful (e.g., via a held-out "known ground truth cause" check) when
+the top contributing features are compared against the actual injected fault
+type, and is this explanation substantially more useful to a non-expert than
+a simple rule-based "if RSSI<X then coverage fault" decision tree?
+  H5: SHAP's top-ranked feature(s) match the actual injected fault's
+      most physically relevant signal (e.g., RSSI for Coverage, WAN RTT for
+      ISP-link faults) in a majority of correctly-classified cases,
+      measured against a predefined feature-to-fault-class relevance map
+      prepared before evaluation (to avoid post-hoc rationalization).
+
+================================================================================
+F. EXPERIMENTAL PROTOCOL
+================================================================================
+
+--------------------------------------------------------------------------------
+F.1 RECOMMENDED FAULT TAXONOMY (for the first paper - see Section 7 for what
+to postpone)
+--------------------------------------------------------------------------------
+1. WI-FI COVERAGE        - weak signal due to distance/walls; induced via
+                            physical probe relocation and/or attenuation
+                            (foil/enclosure shielding - RAID uses RF
+                            attenuators and Faraday cages; PiProbe's
+                            lower-budget equivalent is physical distance
+                            and known-attenuation materials, reported as a
+                            limitation versus lab-grade RF attenuators).
+2. WI-FI INTERFERENCE    - co-channel/adjacent-channel Wi-Fi contention
+                            (a second AP broadcasting on an overlapping
+                            channel) and non-Wi-Fi 2.4GHz interference
+                            (e.g., microwave oven, Bluetooth burst traffic)
+                            - precedent: Wi-Dia explicitly targets this
+                            class; RAID's "Interference" class uses a
+                            competing-station traffic generator, directly
+                            reusable as a methodological template.
+3. WI-FI MAC/CONGESTION  - high client density / channel-utilization
+                            saturation on the home AP; induced with
+                            synthetic competing traffic from additional
+                            stations.
+4. LAN/ROUTER FAULT      - router CPU overload, DHCP exhaustion, bad
+                            cable/switch port on the wired segment; this
+                            is where the Pi's clean wired baseline earns
+                            its place in the architecture - it is the
+                            one vantage point immune to Wi-Fi-layer noise,
+                            so LAN-vs-not-LAN should be the taxonomy's most
+                            reliable split.
+5. WAN/ISP FAULT         - injected via a controlled upstream
+                            shaping/dropping device (e.g., tc/netem on a
+                            router-adjacent Linux box, or a managed switch/
+                            travel router positioned between the home
+                            router and the ISP modem) rather than by
+                            actually disrupting the live ISP link -
+                            ETHICAL/PRACTICAL NOTE: do not deliberately
+                            degrade a production ISP connection relied on
+                            by a household for real use; inject WAN
+                            impairment on an isolated test path or VLAN.
+6. DNS FAULT              - induced resolver latency or resolver failure
+                            (point probes at a deliberately slow/unreachable
+                            resolver for trial windows), isolated from
+                            general WAN latency so the model must learn to
+                            tell them apart - this split is explicitly
+                            named in your brief and is NOT separately
+                            evaluated in any comparator system found.
+7. PROBE FAULT            - power loss, clock desync beyond tolerance,
+                            probe-side Wi-Fi disassociation; induced by
+                            deliberately power-cycling or disconnecting
+                            individual ESP32 probes during trials. This is
+                            PiProbe's most distinctive taxonomy class (see
+                            Section C/D) - do not under-resource its
+                            trial count relative to the "flashier" classes.
+8. NORMAL / NO-FAULT      - baseline operating condition, collected in
+                            substantially larger volume than any single
+                            fault class (see F.4).
+
+Explicitly recommended for POSTPONEMENT, not inclusion, in the first paper
+(see Section 7 for the full scope argument): application/HTTP-server-side
+faults (CDN slowness, origin server issues) - these are confounded with WAN
+faults using only client-side probes and need a controlled server-side
+testbed to inject cleanly; cellular/5G measurements - out of scope entirely
+per your own brief.
+
+--------------------------------------------------------------------------------
+F.2 CONTROLLED FAULT-INJECTION PROCEDURE
+--------------------------------------------------------------------------------
+1. Baseline capture: for each room/location, collect >= 60 minutes of
+   NORMAL-condition telemetry from every probe before any fault is injected
+   that day, to characterize that room's idle noise floor.
+2. One fault class injected per trial window (no overlapping faults within
+   a single trial, to keep ground-truth labels unambiguous) - multi-fault
+   trials are a valid STRETCH addition later (see Section 7) but should not
+   be in the first paper's primary dataset, to avoid label ambiguity
+   undermining everything else.
+3. Each trial: fixed duration (e.g., 5-10 minutes), fixed room, logged
+   start/end timestamps on the SAME clock reference used by the probes
+   (see F.5 on time sync), with the injection method and its parameters
+   (e.g., attenuation material + estimated dB loss, netem loss percentage,
+   competing-traffic bitrate) recorded in a structured injection log - this
+   log IS the ground-truth label source (see F.3).
+4. Randomize trial ORDER across fault classes and rooms within a data-
+   collection day, to avoid confounding "time of day" or "day of week" with
+   "fault class" (a classic and easy-to-miss leakage/confound risk a
+   reviewer will probe for).
+5. Minimum trial count per (fault class x room) cell: 20-30 independent
+   trials, to support confidence intervals and the statistical testing H1-H4
+   require; fewer than this will not support claims with p-values a
+   reviewer will accept.
+6. Safety/ethics: WAN and DNS fault injection must run on an isolated test
+   path (dedicated VLAN, travel router, or netem on a Linux box positioned
+   between the Pi and the real ISP modem) so that real household internet
+   use is never actually disrupted; log this isolation explicitly in the
+   paper's methodology section, since a reviewer WILL ask how you avoided
+   degrading someone's real internet access to generate WAN-fault samples.
+
+--------------------------------------------------------------------------------
+F.3 GROUND-TRUTH LABELING METHOD
+--------------------------------------------------------------------------------
+Ground truth is the injection log itself (fault class + start/end timestamp
++ injection parameters), NOT a post-hoc human judgment call - this is a
+methodological strength to state explicitly, since several comparator
+papers (e.g., WiSlow/DYSWIS-era crowdsourced systems) rely on less precise,
+user-reported ground truth. Label each telemetry sample/window with the
+fault class active during its timestamp range per the injection log; samples
+collected during the injection device's own warm-up/cool-down transition
+(e.g., first/last 5-10 seconds of a netem rule taking effect) should be
+EXCLUDED from the labeled dataset rather than mislabeled, and this
+exclusion window should itself be reported as a methodological parameter.
+
+--------------------------------------------------------------------------------
+F.4 CROSS-ROOM, CROSS-TIME, CROSS-DEVICE, CROSS-BUILDING VALIDATION DESIGN
+--------------------------------------------------------------------------------
+  - Cross-room: hold out all trials from one or more ENTIRE rooms from
+    training; test on the held-out room(s). Tests spatial generalization.
+  - Cross-time: hold out an entire contiguous time block (e.g., the final
+    data-collection week) from training; test on it. Tests temporal
+    generalization / drift (relevant because home Wi-Fi/ISP conditions
+    genuinely change over weeks - new neighboring networks appear, ISP
+    congestion patterns shift).
+  - Cross-device: swap which physical ESP32 units are "seen" in training
+    vs. test, to isolate whether the model has learned device-specific
+    quirks (reinforces the board-to-board calibration question in RQ2/H2).
+  - Cross-building: only if a second building is actually available (see
+    Section 7 - this is explicitly flagged there as something to scope
+    carefully, not assume).
+In every case: report in-distribution AND held-out performance side by
+side, never only the flattering one - this directly operationalizes your
+brief's instruction to be skeptical and avoid exaggerated claims.
+
+
+================================================================================
+G. REQUIRED HARDWARE / SOFTWARE (with methodology evaluation folded in)
+================================================================================
+
+--------------------------------------------------------------------------------
+G.1 HARDWARE
+--------------------------------------------------------------------------------
+  - 1x Raspberry Pi 5, Ethernet-connected: wired baseline + MQTT broker
+    (Mosquitto) + time-series store (InfluxDB or SQLite) + Grafana host.
+  - 3-6x ESP32 or ESP32-C5 distributed probes (see G.1.1 for the 2.4GHz-
+    only-vs-C5 decision).
+  - A controlled WAN-impairment point (see F.2.6) - e.g., a small Linux
+    box or travel router running netem/tc, positioned so it can shape/drop
+    traffic on an isolated test path without touching real household
+    traffic.
+  - Known-attenuation enclosure materials for coverage-fault induction
+    (e.g., characterized foil/fabric shielding) if true RF attenuators/
+    Faraday enclosures (as RAID used) are not affordable - report the
+    estimated attenuation and its own uncertainty as a limitation.
+
+G.1.1 ESP32-C5 / 5GHz SUITABILITY (VERIFIED spec check, Espressif/
+distributor product pages):
+  The ESP32-C5 is Espressif's first dual-band (2.4GHz AND 5GHz) Wi-Fi 6
+  (802.11ax) SoC, with 802.11b/g/n backward compatibility, a single-core
+  RISC-V processor up to 240MHz, 400KB on-chip SRAM, BLE 5, Zigbee 3.0,
+  Thread 1.4, and critically: 1T1R (single transmit, single receive
+  antenna/spatial stream) in BOTH bands. This means the ESP32-C5 CANNOT
+  exploit Wi-Fi 6 MU-MIMO or multi-stream OFDMA throughput gains - its
+  practical throughput ceiling is set by the single-stream PHY rate, not by
+  "Wi-Fi 6" marketing numbers. For PiProbe's purposes (RSSI/channel/
+  latency/jitter/loss measurement, not raw throughput maximization), this
+  is a non-issue; for any throughput benchmarking claim involving the C5,
+  the 1T1R limitation must be stated so reviewers do not expect multi-
+  hundred-Mbps single-probe throughput.
+  Recommendation: 2.4GHz-only ESP32 probes are SUFFICIENT for the fault
+  taxonomy in F.1 (none of the 8 classes inherently requires 5GHz); ESP32-
+  C5 is worth including for ONE or two probes specifically to test whether
+  5GHz changes interference/coverage fault signatures, but is not required
+  core infrastructure for a first paper (see Section 7).
+
+--------------------------------------------------------------------------------
+G.2 SOFTWARE / MEASUREMENT METHODOLOGY
+--------------------------------------------------------------------------------
+  - MQTT (Mosquitto) for probe telemetry; InfluxDB or SQLite for storage;
+    Grafana for visualization - standard, as discussed in Section C (not a
+    contribution, just the plumbing).
+  - Throughput tool: iperf2 vs iperf3 - VERIFIED from the official iperf3
+    FAQ (software.es.net), this is not a trivial choice:
+      * iperf3 was, for most of its history (pre-v3.16, which only landed
+        multi-threading in 2023), SINGLE-THREADED - one thread handles all
+        streams. On a resource-constrained embedded device (an ESP32 has
+        far less CPU headroom than a PC), a single-threaded tool pegging
+        one core can itself become the measurement bottleneck rather than
+        the network, contaminating throughput results.
+      * iperf2 is multi-threaded (one thread per stream) and was
+        specifically noted in community discussion as more appropriate on
+        CPU-constrained embedded/router-class hardware for exactly this
+        reason.
+      * iperf3 is explicitly NOT officially supported on Windows (iperf2
+        is) - irrelevant if your Pi/ESP32 side never touches Windows, but
+        worth noting if any lab Windows machine is used for comparison
+        runs.
+      * iperf2 and iperf3 report data in SLIGHTLY different ways and are
+        not perfectly cross-compatible; PICK ONE tool and use it
+        consistently for every throughput measurement in the dataset -
+        mixing iperf2 and iperf3 results in the same dataset without a
+        clearly documented conversion/caveat is a reviewer-bait
+        methodological inconsistency.
+      Recommendation: iperf2, run FROM the Raspberry Pi as the controlled
+      server endpoint, with lightweight client-side throughput probes on
+      the ESP32s if the ESP32 iperf-equivalent library's CPU overhead is
+      budgeted and reported (the ESP32's own CPU load during a throughput
+      test is itself a confound worth logging, not ignoring).
+  - Time synchronization: use SNTP (ESP-IDF has native SNTP/LwIP support)
+    for the ESP32 probes against the Raspberry Pi acting as a local NTP
+    reference (chrony/ntpd on the Pi, itself synced to a stratum-1/2
+    source over its wired Ethernet link - the Pi's wired connection is
+    exactly why it is well-suited to be the local time reference). Report
+    the achieved synchronization accuracy (typical LAN-local NTP/SNTP is
+    single-digit-to-low-tens-of-milliseconds; this is adequate for the
+    second-to-tens-of-seconds granularity of fault-injection windows in
+    F.2, but should be explicitly measured and stated, not assumed,
+    because it directly bounds how precisely "detection delay" (Section I)
+    can be measured.
+  - Sampling interval: match or justify against precedent - RAID samples
+    every 3 seconds from the access point; WITNESS/multi-modal benchmark's
+    exact interval was not confirmed in this search. Recommend 1-5 second
+    sampling for PiProbe's probes, stated explicitly, with a note on the
+    tradeoff (finer sampling = better fault-onset localization and more
+    data per trial, at the cost of more probe CPU/radio duty cycle and
+    more storage).
+  - IPv4 vs IPv6: test and report BOTH if the deployment ISP provides
+    IPv6 (most Indian ISPs increasingly do); DNS-fault injection in
+    particular can behave differently under IPv6 (different resolver
+    paths, Happy Eyeballs client behavior masking a slow path by falling
+    back), so at minimum state which protocol was used for every WAN/DNS
+    measurement rather than leaving it ambiguous.
+  - Packet-loss and jitter calculation: define precisely in the paper
+    (e.g., RFC 3550-style jitter estimation if using RTP/UDP probes, or a
+    simple interarrival-time standard deviation if using ICMP/custom
+    probes) - "jitter" is used loosely in casual engineering writing and a
+    reviewer will want the exact formula.
+
+--------------------------------------------------------------------------------
+G.3 ESP32 RSSI ACCURACY AND CALIBRATION - METHODOLOGY FINDINGS (VERIFIED,
+multiple independent sources)
+--------------------------------------------------------------------------------
+  - RSSI-to-distance/quality mapping is well documented as NOISY and
+    environment-dependent even on dedicated research hardware, not just
+    ESP32s: a foundational, highly-cited paper (Dong & Dargie, "Evaluation
+    of the reliability of RSSI for indoor localization," ICWCUCA 2012 -
+    NOTE: this predates your requested 2014-present window; included here
+    as essential grounding context only, flagged as outside the requested
+    date range) found RSSI error "unacceptably high" for indoor
+    localization without calibration. This is the right framing for
+    PiProbe: do not present raw RSSI as reliable; present CALIBRATED RSSI
+    with reported residual error.
+  - ESP32-specific evidence (2023-2025, within your requested window):
+      * A 2025 journal paper (ELKHA: Jurnal Teknik Elektro, Oct 2025)
+        evaluating RSSI-based distance estimation with ESP32 BLE modules
+        (same radio front-end family, though BLE not Wi-Fi station mode)
+        found reliable estimation only within about 4 meters with under
+        25% error in clear line-of-sight, using a log-distance path-loss
+        model calibrated with a measured reference RSSI at 1 meter (-47
+        dBm) and a path-loss exponent of 2; beyond ~5 meters, or with wall
+        obstruction, RSSI fluctuated heavily and distance was
+        over-estimated. This is directly relevant to PiProbe's coverage-
+        fault class: expect RSSI-based coverage estimates to be
+        trustworthy only at short range/LOS, and say so.
+      * A 2024 arXiv paper on ESP32-S2 Fine Time Measurement (FTM, i.e.
+        802.11mc round-trip-time ranging) found that RSSI-based distance
+        estimates in an indoor multipath environment were "clearly very
+        inaccurate," with RTT/FTM-based estimates substantially more
+        accurate (about 75% of FTM-based measurements under 5m error vs
+        about 50% for the raw RTT parameter) - suggesting that if the
+        target ESP32 variant supports FTM, RTT-based ranging may be a
+        BETTER-calibrated complementary signal to RSSI for coverage
+        estimation, worth at least discussing even if not adopted as the
+        primary signal in a first paper.
+      * Indoor-positioning papers using ESP32 RSSI (e.g., a 2023/2024
+        arXiv paper combining Wi-Fi+BLE RSSI with Kalman filtering + KNN +
+        an RNN/LSTM model) consistently find raw RSSI needs active
+        filtering (Kalman filtering is the most common choice in this
+        literature) before being fed into any downstream model - PiProbe's
+        calibration step should include, at minimum, a documented per-
+        device offset correction and a smoothing/filtering stage, not
+        raw RSSI straight into the classifier.
+  - BOARD-TO-BOARD VARIATION: not covered by a single dedicated ESP32
+    paper found in this search, but it is implied and handled-around
+    throughout the indoor-positioning literature above (every system that
+    gets good results applies SOME form of per-device calibration/
+    filtering rather than trusting raw RSSI across units) - treat
+    per-device RSSI offset calibration (e.g., co-locating all probes at a
+    known reference distance/attenuation before deployment and recording
+    each unit's offset from the group mean) as a REQUIRED step, and report
+    the measured spread across your specific probe units as an explicit
+    number in the paper, since this appears to be an evidence gap in the
+    literature that PiProbe can genuinely help fill with real reported
+    numbers.
+  - ANTENNA ORIENTATION / ENCLOSURE EFFECTS: not covered by a dedicated
+    verified source in this pass; recommend PiProbe run and report its own
+    simple controlled test (several fixed orientations x several candidate
+    enclosures, at a fixed reference distance) BEFORE the main data
+    collection, since no external citation was found to lean on here -
+    this is a small, cheap, easy sub-experiment that directly strengthens
+    the "calibrated" claim in your own title.
+  - 2.4GHz LIMITATIONS: three non-overlapping channels (1/6/11 in most
+    regulatory domains), high susceptibility to non-Wi-Fi ISM-band
+    interference (microwave ovens, Bluetooth, some cordless phones) -
+    standard, well-established RF engineering, usable as background/
+    motivation without needing a fresh citation.
+
+================================================================================
+H. DATASET SCHEMA
+================================================================================
+Recommended structure (per-sample / per-telemetry-row):
+
+  timestamp_utc          (synchronized per G.2's time-sync procedure)
+  probe_id                (unique per physical ESP32/Pi unit - required for
+                           cross-device validation, F.4)
+  room_id                 (not GPS, per your original design)
+  building_id              (for cross-building validation, if applicable)
+  link_type               (wifi_probe | wired_pi_baseline)
+  wifi_rssi_dbm           (raw)
+  wifi_rssi_dbm_calibrated (after per-device offset correction, G.3)
+  wifi_channel
+  wifi_bssid               (hashed/anonymized if the open dataset is to be
+                           publicly released, to avoid exposing real
+                           neighboring-network identifiers)
+  local_rtt_ms             (probe <-> Pi, wired-baseline-referenced)
+  local_jitter_ms          (formula stated explicitly per G.2)
+  local_packet_loss_pct
+  local_throughput_mbps    (iperf2, per G.2 - note tool version used)
+  wan_latency_ms            (Pi -> external reference, multiple targets
+                           recommended to avoid single-target bias)
+  dns_resolution_ms
+  http_response_ms
+  wan_throughput_mbps
+  ip_version                (v4 | v6, per G.2)
+  injected_fault_class      (one of the 8 classes in F.1, or "normal";
+                           NULL only during explicitly-excluded transition
+                           windows, per F.3 - never silently mislabeled)
+  injection_params          (structured: attenuation estimate / netem rule /
+                           competing-traffic bitrate / power-cycle event,
+                           as applicable to the active fault_class)
+  trial_id                  (groups all rows belonging to one F.2 trial)
+  measurement_uncertainty_flag (set when a known-noisy condition applies,
+                           e.g., sample taken beyond the ~4-5m RSSI-
+                           reliability range found in G.3, so downstream
+                           users of the open dataset can filter/weight
+                           accordingly - this field operationalizes your
+                           brief's explicit call for confidence intervals
+                           and is, to this search's knowledge, not present
+                           in any comparator dataset, including WITNESS)
+
+Train/validation/test split: split by trial_id AND room_id (never by
+individual timestamp row) to prevent leakage - rows from the same trial are
+highly autocorrelated, and splitting within a trial would let the model
+"cheat" by memorizing a trial's specific noise signature rather than
+learning the fault signature. For cross-room validation (F.4), the
+test-room's data must be entirely absent from both train and validation.
+
+================================================================================
+I. EVALUATION PLAN
+================================================================================
+  - Primary metrics: accuracy, macro-F1 (not micro-F1/accuracy alone,
+    given class imbalance between NORMAL and fault classes is expected),
+    precision/recall per class, full confusion matrix - directly following
+    RAID's own reported metric vocabulary (Section B.8) so PiProbe's
+    numbers are legible and comparable to the closest ML precedent.
+  - False-ISP-alarm rate: fraction of non-WAN-fault trials (e.g., probe
+    faults, Wi-Fi coverage faults) misclassified as "WAN/ISP fault" -
+    explicitly named in your brief, explicitly NOT reported by any
+    comparator system found in this search; this is a genuinely novel
+    reported metric for this literature and should be a headline number in
+    the paper's abstract.
+  - Detection delay: wall-clock time from true fault onset (per the
+    injection log, F.3) to the model's first correct classification,
+    bounded below by the time-sync accuracy established in G.2 - report
+    both the delay AND the time-sync precision that bounds how finely
+    delay can even be measured.
+  - Calibration error: for the RSSI-to-coverage-confidence mapping (G.3)
+    specifically, report a reliability-diagram-style calibration error
+    (e.g., expected calibration error, ECE) between the model's stated
+    confidence and its empirical accuracy - this directly operationalizes
+    the "calibrated" in your project's own title and should not be
+    skipped even under time pressure.
+  - Ablations (minimum set): (a) cross-layer fusion vs single-layer-only
+    (tests H1), (b) calibrated vs raw RSSI (tests H2), (c) with vs without
+    explicit probe-health class (tests H4), (d) ML classifier vs
+    simple rule-based/threshold baseline (tests whether the ML layer earns
+    its complexity - a rule-based baseline that does nearly as well on the
+    "obvious" classes, e.g. probe-power-loss, is a valuable, HONEST finding
+    to report, not something to hide).
+  - Cost/power/uptime/scalability: report per-unit hardware cost (ESP32 +
+    enclosure + power), measured power draw per probe, measured probe
+    uptime/failure rate over the full data-collection period (this
+    DIRECTLY feeds the probe-fault class's real-world base rate, closing
+    the loop between Sections F.1 and I), and a stated/justified estimate
+    of how probe count scales (MQTT broker and Pi compute headroom at
+    3 vs 6 vs hypothetically more probes).
+
+
+================================================================================
+7 (WORKED INTO SCOPE RECOMMENDATION BELOW, AND INTO SECTION J/K/M)
+RECOMMENDED SCOPE FOR THE FIRST PAPER
+================================================================================
+  - INCLUDE in paper 1: the full 8-class taxonomy (F.1) but on 2.4GHz-only
+    ESP32 probes, single building, 3-6 probes, rule-based + one ML baseline
+    (keep the model simple - e.g., gradient-boosted trees or a shallow
+    classifier per RAID's own finding that a lightweight SVM/logistic-
+    regression second stage was sufficient - do not reach for a large deep
+    model in a first paper), cross-room and cross-time validation (both
+    cheap to run, both directly requested in your brief), SHAP-based
+    explainability (not an LLM/knowledge-graph approach - that is PropLLM's
+    territory and a second-paper-scale undertaking), and the calibration/
+    uncertainty reporting throughout (this IS the paper's distinguishing
+    claim - do not cut it under time pressure).
+  - POSTPONE to a follow-on paper: ESP32-C5/5GHz as core infrastructure
+    (include at most 1-2 C5 units as an exploratory side-note, not as a
+    load-bearing claim); a second building/cross-building validation
+    (valuable, but only if it does not compromise trial-count-per-class in
+    the first building - a shallow two-building dataset is worse evidence
+    than a deep one-building dataset); multi-fault (overlapping) injection
+    trials; application/HTTP-server-side fault injection; LLM-based
+    explainability (PropLLM-style).
+  - CELLULAR MEASUREMENTS: exclude entirely, as your brief already states -
+    nothing in this search suggests revisiting that exclusion; none of the
+    nine comparator systems include cellular either, so this is not a gap
+    PiProbe needs to fill to be competitive.
+  - IS MACHINE LEARNING NECESSARY? Not axiomatically - RQ1/H1's null
+    hypothesis (cross-layer fusion and/or ML gives no significant lift
+    over a well-built rule-based/threshold system) is a live, reportable
+    possibility given WITNESS's own finding that current methods struggle
+    with heterogeneous data. Include BOTH a rule-based baseline and one ML
+    model, and let the comparison be an honest finding rather than a
+    foregone conclusion assumed from the start.
+  - IS AN OPEN DATASET ESSENTIAL? Not for publishability per se (plenty of
+    the comparator papers in Section B did not release open data), but
+    GIVEN that your brief already commits to one, and given WITNESS set a
+    recent precedent for exactly this kind of release, yes - releasing one
+    strengthens the paper materially and differentiates PiProbe from the
+    Wi-Fi-only WITNESS dataset specifically via the WAN/DNS/HTTP columns in
+    Section H's schema. Recommended: release on IEEE DataPort (the
+    comparator's own venue) with a clear, explicit license.
+
+================================================================================
+J. IEEE PAPER OUTLINE (6 PAGES, TWO-COLUMN)
+================================================================================
+Title (working): "PiProbe: Calibrated Cross-Layer Diagnosis of Indoor Wi-Fi
+and WAN Faults Using Low-Cost Distributed Probes"
+(Consider cutting "India-specific" entirely from the title per Section D;
+if infrastructure-diversity framing per Section D is retained, work it into
+one sentence of the Introduction/Deployment description instead of the
+title.)
+
+Page 1 (~0.9 col after title/abstract):
+  - Abstract (~200 words): state the gap precisely (WAN-inclusive,
+    calibrated, low-cost, probe-health-aware - per Section D), NOT "first
+    Wi-Fi fault diagnosis system."
+  - I. Introduction: motivate with the Netrics finding that home Wi-Fi is
+    often the real bottleneck (cite explicitly, Section B.2), state RQ1-RQ4
+    from Section E, state contributions as a clearly numbered list matching
+    Section C's "KEEP" items only.
+
+Page 1-2:
+  - II. Related Work, organized by the SAME structure as Section B above:
+    low-cost Pi-based measurement (Wi-Pi, Netrics, CheesePi, Internet-Pi);
+    Wi-Fi-vs-LAN-vs-WAN diagnosis (WiSlow/DYSWIS); ML-based Wi-Fi fault
+    classification (Wi-Dia, RAID, WITNESS/multi-modal benchmark,
+    PropLLM); explainability (SHAP literature, PropLLM). End this section
+    with an explicit "Positioning" paragraph stating the WAN-inclusion +
+    low-cost-calibration + probe-health gap from Section D in your own
+    words - do this explicitly rather than leaving differentiation
+    implicit, since RAID and WITNESS are close enough that a reviewer will
+    otherwise ask "how is this different" as their first question.
+
+Page 2-3:
+  - III. System Architecture: Pi + ESP32 hardware (G.1), MQTT/InfluxDB/
+    Grafana pipeline, stated explicitly and briefly as implementation
+    detail (per Section C, do not oversell this part).
+  - IV. Measurement Methodology and Calibration: RSSI calibration procedure
+    and measured board-to-board spread (G.3), time-sync procedure and
+    measured accuracy (G.2), iperf2 justification (G.2), sampling interval
+    and jitter/loss formulas (G.2) - this section is where I2MTC reviewers
+    (an Instrumentation & Measurement Society audience) will look first;
+    give it real space, not a half-page afterthought.
+
+Page 3-4:
+  - V. Fault Taxonomy and Injection Protocol: the 8-class taxonomy (F.1),
+    injection procedure (F.2), ground-truth labeling (F.3), ethical note on
+    isolated WAN-impairment path (F.2.6).
+
+Page 4-5:
+  - VI. Dataset: schema summary (H, condensed to a table), scale (N trials
+    x N classes x N rooms), train/val/test split method and leakage
+    avoidance (H), release plan/license.
+  - VII. Classification and Explainability: rule-based baseline, ML model,
+    SHAP layer (brief - full SHAP methodology detail can go to an appendix/
+    extended version if page-constrained).
+
+Page 5-6:
+  - VIII. Evaluation: metrics (I), main results table, confusion matrix
+    figure, ablations (I), cross-room/cross-time results reported
+    side-by-side with in-distribution results (per F.4's explicit
+    instruction not to hide the less-flattering number), calibration-error
+    result, cost/power/uptime table.
+  - IX. Discussion and Limitations: explicitly restate what is NOT solved
+    (single building, 2.4GHz-primary, no multi-fault trials, India/single-
+    ISP generalization caveat per Section D) - a clearly-written Limitations
+    section is itself evidence of rigor to an I2MTC reviewer.
+  - X. Conclusion and Future Work: second building, ESP32-C5/5GHz,
+    multi-fault trials, LLM-based explainability (PropLLM-style) as
+    explicitly named future directions.
+  - References (not counted in the 6-page body; aim for 25-35 references
+    given the density of close prior work established in Section B).
+
+================================================================================
+K. EIGHT-WEEK EXECUTION ROADMAP
+================================================================================
+(Calibrated against the I2MTC 2027 full-paper deadline of Dec 4, 2026 - see
+Section 8/M: as of this writing, Oct 13, 2026, that is approximately 7.5
+weeks away, i.e. TIGHTER than this 8-week plan. Read Section M before
+treating this roadmap as "and then submit.")
+
+Week 1: Hardware finalization - flash/configure all ESP32 probes, implement
+  per-device RSSI offset calibration procedure (G.3) and run it, set up Pi
+  as NTP/chrony reference + MQTT broker + InfluxDB/SQLite, validate iperf2
+  end-to-end, measure and record achieved time-sync accuracy (G.2).
+
+Week 2: Finalize fault taxonomy (F.1) and injection procedure (F.2) in
+  writing BEFORE collecting data; build/validate the isolated WAN-impairment
+  injection path (netem/travel router) and confirm it does not touch real
+  household traffic; run a small pilot batch (2-3 trials per class) to
+  shake out labeling-pipeline bugs before committing to the full protocol.
+
+Week 3-4: Full-scale controlled data collection - randomized trial order
+  (F.2.4), minimum 20-30 trials per (fault class x room) cell (F.2.5),
+  continuous NORMAL-baseline capture interleaved throughout, not just at
+  the start (Netrics-style discontinuity-detection thinking: conditions
+  drift over days, so normal-condition data collected only once at the
+  start will not represent later trial days).
+
+Week 5: Dataset assembly per the H schema, train/val/test split by
+  trial_id/room_id (H), implement and run the rule-based baseline.
+
+Week 6: Train and evaluate the ML baseline; compute all Section I metrics
+  (accuracy, macro-F1, confusion matrix, false-ISP-alarm rate, detection
+  delay, calibration error); run the four ablations in I.
+
+Week 7: Cross-room and cross-time validation runs (F.4); SHAP explainability
+  layer and its sanity-check against H5; cost/power/uptime tabulation.
+
+Week 8: Draft the full paper against the Section J outline; internal review
+  against the Section L risk register (below) BEFORE submission; finalize
+  dataset release packaging (license, README, schema documentation) if
+  releasing alongside submission.
+
+================================================================================
+L. RISK REGISTER - LIKELY REVIEWER OBJECTIONS AND RESPONSES
+================================================================================
+--------------------------------------------------------------------------------
+Objection 1: "This is a dashboard/engineering project (MQTT + Grafana on a
+Pi), not research."
+Likelihood: HIGH if Section III (architecture) is given more space than
+  Section IV (calibration methodology) in the actual paper.
+Response: Lead the paper's contribution list with calibration/uncertainty
+  and the controlled-injection protocol (Section C's "KEEP" items), not the
+  pipeline. Cite Internet-Pi explicitly (Section B.4) as the kind of
+  project PiProbe is deliberately distinguishing itself from.
+--------------------------------------------------------------------------------
+Objection 2: "A directly comparable open dataset (WITNESS) and ML
+methodology (RAID) already exist and are very recent; what does this add?"
+Likelihood: HIGH - this is the single most dangerous objection given the
+  2026 timing overlap established in Section B.8-B.9.
+Response: Section II's "Positioning" paragraph (per Section J) must name
+  both papers explicitly and state the WAN/DNS/HTTP-inclusion and low-cost-
+  calibration differentiators from Section D in plain terms, not hope the
+  reviewer infers it. Do not let a reviewer discover WITNESS/RAID in their
+  own search and wonder why the authors didn't mention them.
+--------------------------------------------------------------------------------
+Objection 3: "N rooms / 1 building is too small a sample for the
+generalization claims made."
+Likelihood: MODERATE-HIGH, standard for any single-site measurement paper.
+Response: Report cross-room and cross-time results plainly including any
+  degradation (F.4), state the single-building scope as an explicit,
+  acknowledged limitation (Section J.IX) rather than letting a reviewer
+  find it unstated, and frame the paper as establishing a calibrated
+  METHOD and a first open benchmark, inviting replication - a legitimate
+  and common framing for a measurement-science first paper.
+--------------------------------------------------------------------------------
+Objection 4: "ESP32 RSSI is well known to be unreliable (cite Dong & Dargie
+2012, or any of the 2023-2025 ESP32 RSSI papers in Section G.3) - why
+should we trust this system's diagnoses?"
+Likelihood: HIGH from any reviewer with RF/sensing background.
+Response: This is exactly why Section IV (Measurement Methodology and
+  Calibration) must report the MEASURED calibration residual error and
+  the calibration-error (ECE) metric (Section I), not just classification
+  accuracy - answer the objection with a number already in the paper,
+  not a promise.
+--------------------------------------------------------------------------------
+Objection 5: "No statistical significance testing, only point-estimate
+accuracy/F1."
+Likelihood: MODERATE.
+Response: Section F.2.5's minimum trial count (20-30 per cell) and Section
+  E's hypotheses are specifically designed to support confidence intervals
+  and significance tests (e.g., paired bootstrap or McNemar's test between
+  the rule-based and ML baselines) - run and report these, do not skip
+  under time pressure in Week 6-7.
+--------------------------------------------------------------------------------
+Objection 6: "The ML model offers only marginal improvement over a simple
+rule-based threshold system - why is ML needed at all?"
+Likelihood: MODERATE, and per Section I this is a GENUINELY POSSIBLE
+  outcome, not just a hypothetical objection.
+Response: This is answerable honestly rather than defensively: report per-
+  class breakdown showing where ML earns its keep (ambiguous classes like
+  Interference vs Congestion) versus where the rule-based system suffices
+  (e.g., Probe Fault via a simple power-loss heartbeat check) - this is a
+  MORE credible paper than one claiming ML wins uniformly, and directly
+  follows your brief's own instruction to be skeptical.
+--------------------------------------------------------------------------------
+Objection 7: "Geographic/India framing in the title or contributions reads
+as padding, not a research contribution."
+Likelihood: MODERATE-HIGH if Section D's warning is not heeded.
+Response: Remove geographic framing from the title and contributions list;
+  if retained at all, state it only as a measured infrastructure-diversity
+  limitation/context point in Introduction and Discussion, with actual
+  supporting data (e.g., probe power-loss events), per Section D.
+--------------------------------------------------------------------------------
+Objection 8: "Why I2MTC and not a networking/systems venue (e.g., a
+ComSoc or USENIX venue)?"
+Likelihood: LOW-MODERATE, but worth pre-empting in the cover letter/intro.
+Response: Explicitly frame the paper's center of gravity as measurement
+  methodology and calibration (I2MTC's actual stated scope: "measurement
+  theory and metrology," "AI/ML for instrumentation and measurement,"
+  "instrumentation and measurement for communications and IoT" - all
+  VERIFIED from the 2027 CFP, Section 8 below), not networking-systems
+  novelty - this is a genuine, good-faith fit, not venue shopping, provided
+  Section IV is given real weight in the paper as argued under Objection 1.
+
+================================================================================
+8. RECOMMENDED IEEE VENUES (live-checked against current CFPs, Oct 13, 2026)
+================================================================================
+IMPORTANT, FOUND DURING THIS SEARCH: several Wi-Fi/networking IEEE venues
+that would otherwise be strong topical fits have ALREADY CLOSED their 2027
+submission windows as of today (Oct 13, 2026), because annual conferences
+held early in a calendar year typically set deadlines the preceding summer/
+autumn. Specifically CONFIRMED CLOSED: IEEE CCNC 2027 (Las Vegas, Jan 9-12,
+2027) - its technical-paper deadline passed August 2026, and even its
+Work-in-Progress track's final/firm deadline (August 31, 2026) has passed;
+IEEE ICC 2027's main-track deadline is reported elsewhere as having been
+Oct 2, 2026, also just passed. Do not plan around either for THIS cycle.
+This is exactly the kind of check your brief asked for, and the honest
+answer narrows the realistic option set.
+
+--------------------------------------------------------------------------------
+PRIMARY VENUE: IEEE I2MTC 2027 [VERIFIED, full CFP fetched directly]
+--------------------------------------------------------------------------------
+Full name     : IEEE International Instrumentation and Measurement
+                Technology Conference 2027
+Theme         : "Smart Instrumentation for a Connected World"
+Location/date : Chongqing, China, May 17-20, 2027
+Sponsor       : IEEE Instrumentation and Measurement Society (IMS) -
+                flagship conference
+Indexing      : Accepted/presented papers submitted to IEEE Xplore
+                (explicitly stated on the official CFP)
+Scope fit     : Explicitly lists "Digitalization, Machine Learning (ML) and
+                Big Data for Instrumentation and Measurement," "Artificial
+                Intelligence (AI) in Instrumentation and Measurement," and
+                (per the fuller 2026-cycle topics list, likely continued in
+                2027) "Instrumentation and Measurement for Communications
+                and IoT" and "Measurement Theory and Metrology" - a strong,
+                direct fit for PiProbe's calibration-centered framing
+                (Section D).
+Page limit    : Not confirmed precisely in this pass (not stated in the
+                fetched CFP excerpt) - your brief's 6-page two-column
+                target (Section J) is a reasonable default for an I2MTC
+                regular paper; CONFIRM the exact limit on the official
+                "Initial Author Instructions" page before formatting a
+                final submission.
+Review type   : Standard peer review with a two-round process (see
+                deadlines below: a "1st Round Notification" followed by a
+                "Revised Paper Submission" and then "Final Acceptance
+                Notification" - i.e., a shepherding/revise-and-resubmit
+                style process, not a single accept/reject).
+KEY DEADLINES (all CONFIRMED directly from the official conference site,
+i2mtc.ieee-ims.org/2027, fetched Oct 13, 2026):
+    Oct 02, 2026  - Special Session Proposal Deadline   [ALREADY PASSED]
+    Oct 15, 2026  - Submission of Tutorial Proposal      [in 2 days]
+    Nov 15, 2026  - Accept/Reject Notification (special sessions)
+    Dec 04, 2026  - FULL PAPER SUBMISSION DEADLINE  <-- the one that matters
+    Jan 22, 2027  - 1st Round Notification
+    Feb 12, 2027  - Revised Paper Submission Deadline
+    Feb 26, 2027  - Final Acceptance Notification Deadline
+    Mar 19, 2027  - Early Registration Deadline
+    Mar 19, 2027  - Final Manuscript Deadline
+Extension path: Papers presented at I2MTC 2027 are explicitly eligible to
+                submit a technically-extended version to a Special Section
+                of IEEE Transactions on Instrumentation and Measurement
+                (TIM) or the IEEE Open Journal of Instrumentation and
+                Measurement (OJIM), window June 15-July 15, 2027 (OJIM
+                waives open-access fees) - a genuine, concrete path from a
+                6-page conference paper to a full journal article if the
+                work grows, worth mentioning in your own planning.
+CRITICAL TIMING NOTE: As of today (Oct 13, 2026), the full-paper deadline
+                is ~7.5 weeks away - TIGHTER than the 8-week roadmap in
+                Section K. See Section M for what this means for your
+                "submit now / continue experiments / change topic"
+                decision.
+Link          : https://i2mtc.ieee-ims.org/2027
+                https://i2mtc.ieee-ims.org/2027/authors/call-for-papers
+                https://confcats-siteplex.s3.amazonaws.com/i2mtc/files/i2mtc27-cfp_web-06.pdf
+                (official downloadable CFP PDF)
+
+--------------------------------------------------------------------------------
+BACKUP VENUE 1: IEEE SAS 2027 (Sensors Applications Symposium) [VERIFIED]
+--------------------------------------------------------------------------------
+Full name     : IEEE Sensors Applications Symposium 2027, "Smart Sensor
+                Solutions for a Brighter Future"
+Location/date : Ho Chi Minh City, Vietnam, April 26-28, 2027
+Sponsor       : IEEE Instrumentation and Measurement Society - a SISTER
+                conference to I2MTC within the same IMS family, meaning
+                reviewer expectations and scope norms will feel similar to
+                Section 8's primary venue.
+Indexing      : IEEE Xplore (standard for IEEE IMS conferences; stated
+                pattern consistent with I2MTC/SAS's shared sponsoring
+                society - confirm on the final CFP page before relying on
+                this for a submission).
+Scope fit     : Explicit tracks include "Sensing Solutions for the Internet
+                of Things" and "Wireless and Contactless Sensors" - a good,
+                if slightly less direct, fit than I2MTC (SAS leans more
+                toward sensor hardware/applications than measurement
+                theory/metrology specifically, but the IoT-sensing track is
+                squarely relevant to a distributed-ESP32-probe paper).
+KEY DEADLINES (from the official IEEE IMS-hosted CFP PDF, confirmed Oct 13,
+2026 search):
+    Jan 10, 2027  - Initial paper submission deadline
+    Feb 01, 2027  - Final paper deadline
+                   (slightly more runway than I2MTC - about 3 months from
+                   today versus I2MTC's ~7.5 weeks - at the cost of a
+                   somewhat less exact topical match)
+Link          : https://ieee-ims.org/files/ieeeims/2026-07/sas27-cfp_web-02-1.pdf
+
+--------------------------------------------------------------------------------
+BACKUP VENUE 2: IEEE LCN (Local Computer Networks) - topical fit CONFIRMED,
+exact 2027 dates NOT independently confirmed [PARTIALLY VERIFIED - see note]
+--------------------------------------------------------------------------------
+Why listed    : LCN is the IEEE Computer Society's long-running "premier
+                conference on theoretical and practical aspects of computer
+                networking," with recurring, explicitly-listed topic areas
+                including "Network traffic characterization and
+                measurements," "Network management, reliability and QoS,"
+                and "Test beds for network experiments" - historically the
+                single best topical match in this entire report for a
+                measurement-and-diagnosis paper (it even hosted a dedicated
+                Workshop on Network Measurements in past years). All
+                published LCN papers go to IEEE Xplore (confirmed from
+                recent-year CFPs, e.g. the 49th LCN's explicit statement).
+WHAT I COULD NOT VERIFY: the specific 2027 edition's dates, location, and
+                submission deadline were not located as a confirmed, live
+                2027 CFP in this search pass (results returned were for the
+                2023/2024 editions, plus one ambiguous generic listing that
+                did not clearly state it was the 2027 edition). PER YOUR
+                OWN INSTRUCTION to not rely on unverified conference
+                status: do NOT treat LCN 2027 as a confirmed, dated
+                fallback until you check https://www.ieeelcn.org directly
+                for the live 2027 CFP. It is listed here as a direction
+                worth checking personally, not as a verified backup with a
+                known deadline.
+Recommendation: Check ieeelcn.org directly within the next few weeks; LCN
+                has historically run in autumn with a spring/summer
+                deadline, which if the pattern holds would land AFTER the
+                I2MTC and SAS deadlines above, making it a genuine later-
+                2027 safety net - but confirm before relying on this
+                timing assumption.
+
+--------------------------------------------------------------------------------
+OTHER VENUES CHECKED AND WHY THEY ARE NOT RECOMMENDED RIGHT NOW
+--------------------------------------------------------------------------------
+  - IEEE CCNC 2027: strong topical fit (consumer communications/networking,
+    co-located with CES), but CONFIRMED CLOSED for 2027 as of this writing
+    (see top of this section). Revisit CCNC 2028 once its CFP opens
+    (typically mid-2027 deadline for a January 2028 conference, based on
+    this year's pattern) - do not assume exact dates until that CFP is
+    published.
+  - IEEE WF-IoT: a strong conceptual fit (IoT sensing, AI/ML applications),
+    but the 2027 edition's CFP was not yet published/found in this search
+    (the most recent located edition, WF-IoT 2026, was held Oct 26, 2026,
+    i.e. essentially now, with its own deadline long past). Watch for a
+    WF-IoT 2027/2028 CFP to open.
+  - IEEE SENSORS 2027 (the main IEEE Sensors Council flagship, distinct
+    from SAS above): confirmed to exist for 2027 with an official CFP
+    page, but its listed topics lean toward sensor physics/materials
+    (chemical, optical, acoustic, MEMS sensors) rather than networking/
+    communications measurement, and this search could not extract exact
+    2027 deadline dates from the available page content - a weaker and
+    less-confirmed fit than SAS for this specific paper.
+  - IEEE ICC 2027 / IEEE GLOBECOM 2027: both plausible ComSoc flagships for
+    a networking-measurement paper in general, but this search found only
+    a secondary-source deadline claim for ICC 2027 (Oct 2, 2026, already
+    passed) and did not independently fetch an official CFP for either -
+    not recommended as a backup without direct verification on
+    ieee-globalcommunications-conferences or the ICC conference site.
+
+================================================================================
+M. FINAL RECOMMENDATION: CONTINUE EXPERIMENTS
+================================================================================
+Not "submit now," and not "change topic." The reasoning, stated plainly:
+
+WHY NOT "CHANGE TOPIC": the core idea clears the publishability bar (Section
+D). The specific combination of WAN-inclusive taxonomy, low-cost-hardware
+calibration with reported uncertainty, controlled fault injection in a real
+(non-lab) building, and an explicit probe-self-fault class is not published
+together anywhere located in this search, including against the two closest
+and most recent competitors (RAID, 2025; WITNESS/multi-modal benchmark,
+2026). I2MTC's own stated scope (measurement theory/metrology, AI/ML for
+instrumentation, instrumentation for communications/IoT - Section 8) is a
+genuine, good-faith fit for this kind of contribution, not a mismatch that
+would require changing topic to find a home.
+
+WHY NOT "SUBMIT NOW": your brief, as written, describes a system still at
+the DESIGN stage - it asks for the research questions, the fault taxonomy,
+the injection procedure, and the dataset schema to be designed (Sections
+E-H above), which means no completed controlled-injection dataset, no
+trained baseline, and no measured calibration residual currently exist to
+report. Every one of Section L's eight anticipated reviewer objections is
+answered in this report by pointing to a SPECIFIC MEASURED NUMBER the paper
+needs to report (calibration residual, false-ISP-alarm rate, cross-room F1
+delta, etc.) - none of those numbers exist yet. A paper submitted without
+them would read exactly like Objection 1 ("this is a dashboard project"),
+which is the single most damaging outcome available given how directly
+your own brief tries to avoid it.
+
+THE TIMING PROBLEM, STATED DIRECTLY: IEEE I2MTC 2027's full-paper deadline
+is December 4, 2026 - about 7.5 weeks from today (October 13, 2026),
+TIGHTER than the realistic 8-week roadmap in Section K, which itself
+assumes hardware is already built and configured going into Week 1. If
+hardware and a pilot data pass are ALREADY substantially underway outside
+the scope of this conversation, a narrowed version of Section K's plan
+(cut to the single highest-value ablation, H1/H2, skip H5's SHAP stretch
+goal, accept a smaller single-digit-trials-per-cell pilot with explicitly
+weaker statistics and say so) could plausibly reach I2MTC 2027 as a shorter
+or work-in-progress-style contribution. If hardware/data collection has not
+yet started, I2MTC 2027 is not realistically reachable with the rigor this
+report - and your own brief - asks for, and targeting IEEE SAS 2027 (Jan
+10, 2027 deadline, Section 8) or simply running the full 8-week plan on its
+own timeline and aiming at a next-available, properly-verified venue
+(confirm IEEE LCN 2027's actual date per Section 8, or wait for I2MTC 2028)
+is the higher-expected-value path.
+
+CONCRETE NEXT ACTION: treat Weeks 1-2 of Section K (hardware finalization +
+calibration + taxonomy/injection-procedure lock-down) as the actual decision
+point. If, at the end of Week 2, a clean pilot batch (even just 2-3 trials
+per class, per Section K's own pilot step) shows the measurement pipeline
+working end-to-end with sane calibration numbers, commit to the compressed
+I2MTC 2027 timeline. If Week 2 surfaces fundamental problems (RSSI
+calibration residual too large to be usable, time-sync accuracy
+insufficient for detection-delay claims, WAN-injection path not reliably
+isolated from real traffic), stand down from I2MTC 2027 without regret and
+retarget SAS 2027 or a later-verified venue - a late, rigorous paper beats
+an on-time, thin one against this specific comparison set (RAID and
+WITNESS), both of which will be read by exactly the reviewers PiProbe would
+draw.
+
+================================================================================
+SOURCES / VERIFIED LINKS CITED IN THIS REPORT
+================================================================================
+Wi-Pi (2014, ACM AINTEC):
+  https://publications.iith.ac.in/publication/wi-pi-distributed-wi-fi-performance-assessment-using-raspberry-pi
+Netrics (Internet Equity/Innovation Initiative, U. Chicago):
+  https://internetequity.cs.uchicago.edu/data-story/a-tale-of-two-gigs
+  https://github.com/internet-equity/netrics
+  https://github.com/internet-innovation/netrics-data
+CheesePi (2017, IEEE):
+  https://ieeexplore.ieee.org/document/8264886/metrics
+Internet-Pi (GitHub, ongoing):
+  https://github.com/geerlingguy/internet-pi
+WiSlow (2014, IEEE INFOCOM) and DYSWIS (2014, IEEE ICCCN):
+  https://cs.columbia.edu/irt/publications?tag=DYSWIS
+  (WiSlow DOI 10.1109/infocom.2014.6848014, via research.amanote.com)
+Wi-Dia (2018, IEEE RTSI):
+  https://iris.unipa.it/handle/10447/356874
+RAID (2025, ECML PKDD):
+  https://orbilu.uni.lu/bitstream/10993/66323/1/preprint_ecml_pkdd_2025_ads_265%20%281%29.pdf
+  https://github.com/joelromanky/raid
+"Toward Realistic Wi-Fi Fault Diagnosis: A Multi-Modal Benchmark" (2026):
+  https://arxiv.org/pdf/2605.22008
+WITNESS dataset (IEEE DataPort, DOI 10.21227/wg2q-ek03):
+  https://ieee-dataport.org/documents/witness-multi-modal-wi-fi-fault-diagnosis-dataset
+PropLLM (2026, arXiv):
+  https://arxiv.org/pdf/2606.00582
+WiFiMon (GEANT/GN4-3) - used in place of unverified "LabWiFiMon":
+  https://blog.apnic.net/2021/11/08/wifimon-monitoring-wi-fi-network-performance-from-the-end-user-perspective/
+ESP32-C5 specifications (Espressif product data via distributor pages):
+  https://www.mouser.ch/espressif-esp32-c5-socs
+  https://www.cnx-software.com/?p=149783
+ESP32-S2 FTM / RSSI indoor accuracy (2024, arXiv):
+  https://arxiv.org/pdf/2401.16517
+ESP32 BLE RSSI distance estimation (2025, ELKHA journal):
+  https://garuda.kemdiktisaintek.go.id/documents/detail/5507138
+ESP32 radio-map interpolation (IEEE Sensors Journal):
+  https://repositori.uji.es/xmlui/handle/10234/205202
+Dong & Dargie, RSSI reliability (2012 - outside requested date window,
+included as foundational context only):
+  https://scholar.xjtlu.edu.cn:443/en/publications/evaluation-of-the-reliability-of-rssi-for-indoor-localization-goo
+iperf2 vs iperf3 (official ESnet FAQ):
+  https://software.es.net/iperf/faq.html
+IEEE I2MTC 2027 (primary venue):
+  https://i2mtc.ieee-ims.org/2027
+IEEE SAS 2027 (backup venue 1):
+  https://ieee-ims.org/files/ieeeims/2026-07/sas27-cfp_web-02-1.pdf
+XAI/SHAP for fault diagnosis (review papers):
+  https://arxiv.org/pdf/2404.11597
+  https://arxiv.org/pdf/2401.07871
+
+================================================================================
+END OF REPORT
+================================================================================

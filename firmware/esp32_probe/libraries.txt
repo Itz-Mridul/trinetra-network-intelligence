@@ -1,0 +1,32 @@
+# Required Arduino Libraries for esp32_probe.ino
+# Install all of these via Arduino IDE → Library Manager
+
+# 1. PubSubClient (Nick O'Leary)
+#    Version: >= 2.8
+#    Install: Arduino IDE → Sketch → Include Library → Manage Libraries → Search "PubSubClient"
+#    GitHub:  https://github.com/knolleary/pubsubclient
+
+# 2. ESP32Ping (Optional / Not needed)
+#    esp32_probe.ino now uses native TCP handshake round-trip latency (RFC 3550 jitter)
+#    via standard WiFiClient, requiring no external ping library.
+
+# 3. Arduino ESP32 Board Support
+#    Install: Arduino IDE → Preferences → Additional Board URLs:
+#    https://raw.githubusercontent.com/espressif/arduino-esp32/gh-pages/package_esp32_index.json
+#    Then: Tools → Board → Board Manager → Search "esp32" → Install esp32 by Espressif
+
+# ─── Arduino IDE Board Settings for ESP32-WROOM-32 ───────────────────────────
+# Board:             ESP32 Dev Module
+# Upload Speed:      921600
+# CPU Frequency:     240MHz
+# Flash Frequency:   80MHz
+# Flash Mode:        DIO
+# Flash Size:        4MB (32Mb)
+# Partition Scheme:  Default 4MB with spiffs
+# Core Debug Level:  None
+# PSRAM:             Disabled
+
+# ─── For ESP32-C5 (dual-band 2.4/5 GHz) ──────────────────────────────────────
+# Board:             ESP32-C5 Dev Module
+# USB-CDC On Boot:   Enabled
+# (Requires esp-idf >= 5.1 or Arduino esp32 core >= 3.x)

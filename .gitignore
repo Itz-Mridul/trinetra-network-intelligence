@@ -1,0 +1,20 @@
+# Local credentials and machine-specific configuration
+config/.env
+firmware/esp32_probe/config.h
+
+# Python caches and local environments
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+
+# Generated experiment/runtime output
+data/raw/
+data/calibration/cal_data.csv
+data/calibration/calibration_offsets.csv
+data/injection_log.csv
+
+# OS/editor files
+.DS_Store
+.idea/
+.vscode/

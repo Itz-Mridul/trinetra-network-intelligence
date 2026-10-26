@@ -1,0 +1,294 @@
+======================================================================================================
+Trinetra  |  DEEP RESEARCH REPORT
+Papers - code - cheaper cellular hardware - research gaps - IEEE publication plan
+Compiled 2 Oct 2026 from live web research.
+Inputs: Trinetra_Project_Guide.md, esp32_raspberry_pi_network_testing_prior_work.md, table.csv
+======================================================================================================
+
+TL;DR (caveman)
+  Idea not new. Wi-Pi (IIT Hyderabad 2014), Netrics (IMC 2024), SigCap exist. Do NOT claim "first".
+  Real hole = WHY network slow (cause attribution), not WHETHER. Fill that. Add India + cellular + open dataset.
+  SIM7600G-H HAT = Rs 6.1-7.6k. Swap: SIM7670G breakout ~Rs 1.9k (has BSNL band B28). Or spare Android phone = Rs 0.
+  ESP32 cannot test fast Wi-Fi (lab 20-30 Mbps). ESP32 iperf = iperf2, not iperf3. Fix plan now.
+  Best IEEE shot now: I2MTC 2027, full paper due 4 Dec 2026 (ESP32 measurement-validity paper).
+
+TABLE OF CONTENTS
+  0. How to read this file (status tags)
+  1. Top findings that change your plan
+  2. Closest prior art - must cite and differentiate (+ feature matrix)
+  3. Literature map by theme (annotated)
+  4. GitHub / code map - do not start from scratch
+  5. Cellular module: cheaper alternatives to Waveshare SIM7600G-H (prices, bands, DIY, validation)
+  6. Technical facts and pitfalls found during research
+  7. Research gaps -> IEEE-publishable contributions (G1-G10)
+  8. Safe novelty statement / claims to avoid
+  9. Publication strategy (venues, deadlines, paper split, search queries, reviewer risks)
+ 10. Datasets and open data
+ 11. Reference list
+ 12. BibTeX (verified entries only)
+ 13. Unverified items / to-do before you cite
+
+======================================================================================================
+0. HOW TO READ THIS FILE
+======================================================================================================
+Status tags on every reference / link / price:
+  [V]    seen this session (title + venue/ID matched in search results or opened page)
+  [V-a]  verified at abstract / snippet level only -> read the full text before citing specifics
+  [C]    carried over from your prior-work file; NOT re-checked this session
+  [?]    could not verify -> do not cite or rely on until you open the source yourself
+
+Rules I followed:
+  - Summaries are paraphrased. Do not paste abstracts into your paper.
+  - Prices are INR as seen on Indian shop listings Sep-Oct 2026. Stock and price move. Re-check before buying.
+  - This is NOT a systematic literature review. Before you claim novelty, run the queries in section 9.4
+    on IEEE Xplore, Scopus and Google Scholar, and add what you find.
+  - "Closest prior art" statements come from abstracts and intro text. Read the full papers before you write
+    "they did not do X".
+
+======================================================================================================
+1. TOP FINDINGS THAT CHANGE YOUR PLAN
+======================================================================================================
+F1  YOUR IDEA IS NOT EMPTY SPACE. Three close, published systems exist.
+      - Wi-Pi (IIT Hyderabad): fixed Raspberry Pi nodes measure RSSI, packet loss, RTT -> floor heat map.
+        AINTEC 2014 (ACM) + IEEE SKIMA 2015 follow-up for multi-floor buildings, with open code.       [V]
+      - Netrics (Univ. of Chicago): Pi at the router; joint Wi-Fi vs access-link throughput in 52 homes;
+        ACM IMC 2024.                                                                                   [V]
+      - SigCap (Univ. of Chicago / Notre Dame): rootless Android app logging LTE/NR cell data, Wi-Fi scans
+        and GPS; crowdsourcing platform.                                                                [V]
+    => Never write "first low-cost distributed Wi-Fi heat-map probes" or "first wired-vs-Wi-Fi bottleneck
+       separation". Cite all three and differentiate (section 2).
+
+F2  THE OPEN HOLE IS "WHY", NOT "WHETHER".
+      - The IMC'24 authors say they can show that Wi-Fi bottlenecks exist but cannot say what causes them.   [V]
+      - ML Wi-Fi troubleshooting (CCNC 2019) works from MAC-layer data exported by the Wi-Fi stack and covers
+        Wi-Fi only.                                                                                     [V]
+      - WiSlow (INFOCOM 2014) needs packet capture on client machines and covers Wi-Fi only.            [V]
+      - ISP monitors (ISP-Checker, internet-pi, ...) have no Wi-Fi layer.                               [V]
+    => PiProbe's publishable core = cross-layer ROOT-CAUSE ATTRIBUTION (ISP/WAN vs router/LAN vs Wi-Fi
+       coverage vs Wi-Fi contention/interference vs probe-local vs cellular), validated with GROUND-TRUTH
+       FAULT INJECTION and an open labelled dataset.
+
+F3  CELLULAR HAT IS EXPENSIVE FOR GOOD REASON, BUT YOU DO NOT NEED IT.
+      Waveshare SIM7600G-H HAT in India: Rs 6,100-7,650 (ThinkRobotics, Robu, Robocraze).                [V]
+      Cheaper, global-band alternative: SIM7670G-LNGV breakout, Rs 1,575 ex-GST (about Rs 1,860 incl. GST)
+      direct from Sharvi Electronics; Rs 2,574 on Amazon.in.                                           [V]
+      Zero-cost alternative: spare Android phone + SigCap (4G + 5G NR + Wi-Fi scan + GPS, dual-SIM capable).
+
+F4  BAND CHECK DECIDES WHICH MODULE YOU CAN BUY (BSNL!).
+      BSNL's main 4G coverage layer is Band 28 (700 MHz); Jio's main data layer is Band 40 (2300 MHz).     [V-a]
+      A7670C / A7672S cover B40 but have NO B28 -> blind to BSNL's primary layer.                          [V]
+      A7670E has no TDD bands (no B40) per SIMCom's own table, although a popular Indian tutorial says
+      otherwise -> do not buy A7670E for India.                                                           [V]
+      Only the "G" (global) parts - SIM7670G / A7670G - list both B28 and B40/B41.                         [V]
+
+F5  ESP32 CANNOT MEASURE FAST WI-FI. Espressif's own lab figures: about 20 Mbit/s TCP and 30 Mbit/s UDP over
+    the air (ESP32, S3, C3 class). Indian FTTH plans are 100-1000 Mbps. Use ESP32 for coverage, latency,
+    jitter, loss, RSSI/channel. Use Pi/laptop/phone clients for capacity.                                [V]
+
+F6  ESP-IDF IPERF EXAMPLE SPEAKS iperf2, NOT iperf3. Your guide says "iperf3 server on Pi" - ESP32 needs an
+    iperf (v2) server. Run both.                                                                         [V]
+
+F7  OPERATOR COVERAGE MAPS ARE OUTDOOR PREDICTIONS. Jio and Airtel state coverage = predicted RSRP >= -110 dBm
+    at outdoor cell edge, and say indoor availability differs. Indoor validation = open, India-relevant gap. [V]
+
+F8  CLASSIC ESP32 IS 2.4 GHz ONLY. ESP32-C5 (dual-band 2.4/5 GHz Wi-Fi 6) is in mass production since Apr 2025;
+    dev kits US$9-15 (Waveshare C5-Pico US$8.99).                                                       [V]
+
+F9  REGULATORY HOOK. TRAI Standards of QoS Regulations 2024 (effective 1 Oct 2024): latency benchmark below
+    50 ms wireline / below 75 ms wireless (tightening to 50 ms), new jitter and packet-drop parameters,
+    mandatory operator coverage maps. Use as reference lines and "indicative compliance" mapping (these are
+    network-level KPIs, not per-subscriber guarantees).                                                  [V-a]
+
+F10 PRIVACY LAW. DPDP Rules 2025 notified 13/14 Nov 2025 with 18-month phased compliance (core duties about
+    May 2027). Treat MAC / BSSID / household-level data as personal-data risk: minimise, hash, consent notice.
+                                                                                                        [V-a]
+
+F11 REALISTIC IEEE TARGETS (today = 2 Oct 2026):
+      - IEEE I2MTC 2027 (Chongqing, 17-20 May 2027): full paper due 4 Dec 2026.                         [V]
+      - IEEE ICC 2027 symposium papers: due 2 Oct 2026 (today) -> skip. ICC 2027 workshop papers due
+        17 Jan 2027.                                                                                    [V]
+      - IEEE WCNC 2027 (due 15 Sep 2026) and IEEE ANTS 2026 (main due 8 Jul 2026) are closed.           [V-a]
+      - Journals are rolling: IEEE Access, TNSM, T-IM, OJ-COMS, IoT-J, Sensors J. [scope/fees: check]    [?]
+
+F12 COST STORY FOR YOUR PAPER. Commercial survey hardware: Ekahau Sidekick 2 about US$5k, software
+    subscriptions extra; NetAlly AirCheck G3 about US$3.9k (US list prices on reseller sites).          [V-a]
+    Your BOM target: Rs 12-25k total.
+
+======================================================================================================
+2. CLOSEST PRIOR ART - MUST CITE AND DIFFERENTIATE
+======================================================================================================
+Format: CITE / LINK / WHAT THEY DID / WHAT THEY DID NOT DO (per abstract) / HOW PiProbe DIFFERS
+
+2.1  Wi-Pi  [V]
+  CITE : D. Bhardwaj, K. Kataoka, V. Kumar, "Wi-Pi: Distributed Wi-Fi Performance Assessment using Raspberry
+         Pi," Proc. 10th Asian Internet Engineering Conf. (AINTEC), pp. 31-36, 2014. DOI 10.1145/2684793.2684798
+  ALSO : D. Bhardwaj, K. Kataoka, V. Vikram, V. Hirani, "Hybrid approach to distributed Wi-Fi performance
+         assessment for multi-floor structures," IEEE SKIMA 2015. DOI 10.1109/SKIMA.2015.7400037 (IEEE Xplore 7400037)
+  CODE : https://github.com/imvikash00/Network_management_using_raspberryPi
+  DID  : Stationary Raspberry Pis across an IIT Hyderabad campus network measured RSSI, packet loss and RTT to a
+         server and drew geographic heat maps; 2015 follow-up mixed Pis with smartphones in multi-floor buildings.
+  NOT  : (per abstracts) no separation of ISP/WAN from Wi-Fi faults, no fault classification, no cellular layer,
+         no ground-truth fault injection, 2014-era Wi-Fi, Pi-class nodes.
+  DIFF : ESP32-class nodes (cost/power), wired baseline + WAN tests, cause attribution with injected faults,
+         cellular overlay, dual-band, open labelled dataset, calibration study.
+
+2.2  Netrics / WiFi-bottleneck study  [V]
+  CITE : R. Sharma, M. Richardson, G. Martins, N. Feamster, "A Longitudinal Study of the Prevalence of WiFi
+         Bottlenecks in Home Access Networks," ACM IMC 2024 (Madrid). DOI 10.1145/3646547.3689007
+         (preprint: arXiv:2311.05499, "Measuring the Prevalence of WiFi Bottlenecks in Home Access Networks").
+         Author list above is from the arXiv version - confirm on ACM DL.
+  CODE : https://github.com/internet-innovation/netrics  (data: https://github.com/internet-innovation/netrics-data)
+  DID  : Pi at the router ran NDT7/Ookla/iperf3 for access throughput; a browser plug-in measured Wi-Fi throughput
+         to a speed-test server on the Pi. 52 households (65 vantage points), Sep 2021 - Jun 2023, 13,581 joint
+         samples. Wi-Fi was the bottleneck every time for access tiers above 800 Mbps.
+  NOT  : authors state they cannot attribute the cause of the bottleneck; Wi-Fi samples exist only when a user
+         device is active; throughput focus (latency/loss not analysed in that paper); Chicago only.
+  DIFF : always-on fixed probes (user-independent), per-room spatial resolution, RSSI/channel/neighbour APs,
+         latency/jitter/loss, cause attribution, cellular, India.
+
+2.3  Wi-Fi pathology diagnosis with ML  [V]
+  CITE : I. Syrigos, N. Sakellariou, S. Keranidis, T. Korakis, "On the Employment of Machine Learning Techniques
+         for Troubleshooting WiFi Networks," IEEE CCNC 2019, pp. 1-6. DOI 10.1109/CCNC.2019.8651823
+  DID  : MAC-layer exported data -> four tuned classifiers -> diagnose five common Wi-Fi pathologies
+         (contention, low SNR, non-802.11 interference, ...).
+  NOT  : Wi-Fi only (no ISP/WAN/LAN split); needs MAC-layer statistics from the Wi-Fi stack.
+  DIFF : black-box, end-to-end features from commodity probes; multi-domain taxonomy; wired baseline.
+
+2.4  WiSlow  [V]
+  CITE : K.-H. Kim, H. Nam, H. Schulzrinne, "WiSlow: A Wi-Fi network performance troubleshooting tool for end
+         users," IEEE INFOCOM 2014. DOI 10.1109/INFOCOM.2014.6848014 (IEEE Xplore 6848014)
+  DID  : user-level probes + packet-loss analysis + 802.11 ACK-pattern analysis to tell channel contention from
+         non-Wi-Fi interference; peers collaborate to locate the source.
+  NOT  : needs capture on client machines; Wi-Fi only; no WAN layer; not a fixed building deployment.
+  DIFF : fixed probes, WAN/LAN baseline, no promiscuous capture of other people's frames required.
+
+2.5  SigCap (cellular + Wi-Fi mapping from phones)  [V]
+  LINK : https://people.cs.uchicago.edu/~muhiqbalcr/sigcap/   (data platform: https://sigcap.crc.nd.edu [V-a])
+  CITE : M. I. Rochman et al., "A comprehensive analysis of the coverage and performance of 4G and 5G deployments,"
+         Computer Networks, vol. 237, 2023, art. 110060 [V-a]. Also V. Sathya, M. I. Rochman, M. Ghosh,
+         "Measurement-based coexistence studies of LAA & Wi-Fi deployments in Chicago" [V-a; venue: check].
+  DID  : Android API logging of LTE (PCI, EARFCN, RSRP, RSRQ), NR (SS-RSRP/RSRQ) and Wi-Fi (BSSID, channel,
+         RSSI) with GPS, no root. 2026 preprint arXiv:2607.16008 uses SigCap Wi-Fi beacon logging in a stadium.
+  NOT  : mobile/passive survey; no wired baseline; no continuous fixed probes; no fault attribution; US sites.
+  DIFF : fixed continuous probes + active tests + wired baseline + India operators; SigCap is the right
+         reference instrument for your cellular cross-check.
+
+2.6  CheesePi  [V]
+  CITE : L. McNamara, I. Marsh, "CheesePi: A Raspberry Pi based measurement platform," IRTF/ISOC RAIM workshop 2015;
+         and "CheesePi: Research, Results, and the Regulator," ACM ANRW 2017, DOI 10.1145/3106328.3106337
+  CODE : https://github.com/liamjjmcnamara/cheesepi
+  DID  : always-on Pi agents measure home Internet quality; worked with the Swedish regulator.
+  NOT  : no Wi-Fi diagnosis layer, no ESP32 sensors, no floor-plan mapping.
+
+2.7  BISmark (gateway-based broadband measurement)  [V]
+  CITE : S. Sundaresan, W. de Donato, N. Feamster, R. Teixeira, S. Crawford, A. Pescape, "Broadband Internet
+         Performance: A View From the Gateway," ACM SIGCOMM 2011, pp. 134-145. DOI 10.1145/2018436.2018452
+  NOTE : classic reference for measuring from the gateway; speed-test design later fed national programmes.
+
+2.8  Home network vs access link (passive inference)  [V]
+  CITE : S. Sundaresan, N. Feamster, R. Teixeira, "Home Network or Access Link? Locating Last-Mile Downstream
+         Throughput Bottlenecks," PAM 2016, LNCS 9631, pp. 111-123. DOI 10.1007/978-3-319-30505-9_9
+  NOTE : found wireless bottlenecks more common than access-link bottlenecks for faster plans; indirect inference.
+
+2.9  MONROE  [V]
+  CITE : Ö. Alay et al., "Experience: An Open Platform for Experimentation with Commercial Mobile Broadband
+         Networks," ACM MobiCom 2017, pp. 70-78. DOI 10.1145/3117811.3117812
+  NOTE : multi-operator mobile-broadband nodes (homes, trains, buses) + open datasets; Europe; heavy hardware.
+         Use as the methodological reference for multi-operator comparison design.
+
+2.10 ESP32 + Pi decoupled monitoring (security focus)  [V-a]
+  CITE : "Monitoring Wireless Networks Using a Low-Cost, Decoupled ESP32-Based Architecture," IEEE Xplore document
+         11208386 (about 2025; confirm venue/authors on the page).
+  DID  : ESP32 as 802.11 packet listener, relays frames to a Pi over SPI, Suricata IDS on the Pi.
+  NOT  : security use-case, not QoS / fault attribution. Cite as ESP32+Pi architecture precedent.
+
+2.11 Probe-selection from shared latency anomalies (Netrics group)  [V-a]
+  CITE : "Less is More: Optimizing Probe Selection Using Shared Latency Anomalies," arXiv:2602.03965 (2026).
+  NOTE : inter-home probes on Pi 4B at routers (99 devices, Apr-Jul 2022). Relevant to your multi-probe
+         fault-domain idea (G6) but across homes, not rooms of one building.
+
+2.12 FEATURE MATRIX (abstract-level; "?" = not stated in abstract; verify in full text)
+  Feature                         | Wi-Pi | Netrics | SigCap | WiSlow | Syrigos | ISP-monitors | PiProbe(plan)
+  --------------------------------+-------+---------+--------+--------+---------+--------------+--------------
+  Fixed continuous probes         |  yes  |  yes    |  no    |  no    |  ?      |  yes         |  yes
+  Per-room spatial map            |  yes  |  no     |  yes   |  no    |  no     |  no          |  yes
+  Wired baseline at router        |  ?    |  yes    |  no    |  no    |  no     |  yes         |  yes
+  WAN/ISP metrics                 |  no   |  yes    |  no    |  no    |  no     |  yes         |  yes
+  Wi-Fi RSSI / channel            |  yes  |  no     |  yes   |  yes   |  yes    |  no          |  yes
+  Wi-Fi latency / loss / jitter   |  yes  |  ~      |  no    |  yes   |  ~      |  no          |  yes
+  Wi-Fi throughput                |  ?    |  yes    |  ~     |  no    |  ~      |  no          |  limited(*)
+  Cellular (multi-operator)       |  no   |  no     |  yes   |  no    |  no     |  no          |  yes
+  Fault CLASSIFICATION            |  no   |  no     |  no    |  yes   |  yes    |  no          |  yes (core)
+  Cross-layer attribution         |  no   |  no     |  no    |  no    |  no     |  no          |  yes (core)
+  Ground-truth fault injection    |  ?    |  no     |  no    |  ?     |  ?      |  no          |  yes
+  Open labelled dataset           |  ?    |  data   |  data  |  ?     |  ?      |  no          |  yes (plan)
+  India deployment                |  yes  |  no     |  no    |  no    |  no     |  ~           |  yes
+  Per-node cost class             |  Pi   |  Pi     |  phone |  laptop|  AP     |  Pi          |  ESP32 + 1 Pi
+  (*) ESP32 radio ceiling ~20-30 Mbit/s; capacity needs Pi/phone client (see G3).
+
+======================================================================================================
+3. LITERATURE MAP BY THEME (annotated)
+======================================================================================================
+3A. MEASUREMENT PLATFORMS (HOME / WAN / MOBILE)
+  [V]  Bajpai & Schoenwaelder, IEEE Commun. Surveys & Tutorials 17(3):1313-1341, 2015. DOI 10.1109/COMST.2015.2418435
+       Taxonomy of Internet performance measurement platforms. Use for related-work framing.
+  [V]  Feamster & Livingood, "Measuring Internet Speed: Current Challenges and Future Recommendations," Commun. ACM
+       63(12):72-80, Dec 2020. DOI 10.1145/3372135. Explains why client-side speed tests often measure the home
+       Wi-Fi rather than the ISP. Use to justify wired baseline + local tests.
+  [V]  M-Lab NDT7 spec: https://github.com/m-lab/ndt-server/blob/main/spec/ndt7-protocol.md - the spec itself warns
+       that a result is not necessarily a last-mile speed. Cite when you explain your WAN throughput test.
+  [V-a] MONROE open dataset: "An Open Dataset of Operational Mobile Networks," ACM 2020, DOI 10.1145/3416012.3424619.
+
+3B. WI-FI BOTTLENECKS AND PERFORMANCE
+  [V]  Sundaresan PAM 2016 and Sharma IMC 2024 (section 2).
+  [C/V-a] K. Sui et al., "Characterizing and Improving WiFi Latency in Large-Scale Operational Networks," ACM MobiSys
+       2016, DOI 10.1145/2906388.2906393 - cited in the IMC preprint's reference list.
+  [C/V-a] J. Shi et al., "A Walk on the Client Side: Monitoring Enterprise WiFi Networks Using Smartphone Channel
+       Scans," IEEE INFOCOM 2016, DOI 10.1109/INFOCOM.2016.7524453 - cited in the IMC preprint's reference list.
+  [V]  Wi-Pi papers (section 2.1).
+
+3C. WI-FI DIAGNOSIS / ML
+  [V]  WiSlow (2.4), Syrigos (2.3).
+  [V-a] "Wi-Fi Meets ML: A Survey on Improving IEEE 802.11 Performance With Machine Learning," IEEE Commun. Surveys &
+       Tutorials, 2022, DOI 10.1109/COMST.2022.3179242 (first author S. Szott - get full author list from IEEE Xplore).
+  [V-a] "AP-side WLAN Analytics," arXiv:2105.04524 - survey of analytics available at the access point.
+  [V-a] "WiFi Pathologies Detection using LLMs," arXiv:2506.06943 (2025) - fine-tuned LLMs for noise-driven
+       pathologies; authors say labelled data is limited. Supports your dataset contribution (G9).
+  [V-a] RAID (root-cause anomaly identification and diagnosis; two-stage ML on AP KPIs, Cloud-VR use case), Univ. of
+       Luxembourg repository record https://orbilu.uni.lu/handle/10993/66323 - check venue/year.
+
+3D. LOW-COST WI-FI SENSING / ESP32
+  [V-a] S. M. Hernandez, E. Bulut, "WiFi Sensing on the Edge: Signal Processing Techniques and Challenges for
+       Real-World Systems," IEEE Commun. Surveys & Tutorials (2022/23 - confirm volume). ESP32 CSI on the edge.
+  [V-a] Fine Time Measurement with ESP32-S2 (arXiv:2401.16517): indoor multipath makes RSSI scatter badly - use to
+       justify averaging/calibration.
+  [V-a] ESP32+MQTT latency characterisation (Theseus thesis; MicroPython edge-cloud latency decomposition in PMC13568285).
+  [V]  ESPresense calibration guide https://espresense.com/guides/calibration/ : board, antenna and even USB cable can
+       shift RSSI by several dB -> per-node offset calibration is mandatory.
+  [V]  Espressif docs, Wi-Fi performance table (ESP32 / S3 / C3 / C5 pages): over-the-air lab TCP about 20, UDP about
+       30 Mbit/s; shielded-box numbers higher. Cite as the hardware ceiling.
+
+3E. CELLULAR MEASUREMENT AND INDOOR COVERAGE
+  [V]  SigCap (2.5); MONROE (2.9).
+  [V-a] arXiv:2601.11457 "Indoor Neutral-Host Networks Over Shared Spectrum and Shared Infrastructure" - reports median
+       indoor RSRP and building-loss comparisons (US deployments); method reference for indoor-vs-outdoor RSRP.
+  [V-a] arXiv:2510.21162 "Quality of Coverage (QoC)" - argues RSRP/throughput alone under-describe coverage quality;
+       proposes composite coverage-quality thinking. Use to justify a composite index (G8).
+  [V-a] arXiv:2607.16008 stadium Wi-Fi vs cellular (SigCap + commercial tool).
+  [V]  RSRP quality bands used in practice (>-80 excellent, -80..-90 good, -90..-100 fair, -100..-110 weak,
+       < -110 poor): https://telecom.dingli.com/wireless-network-kpis-rsrp-sinr-rsrq/ (vendor blog; cite 3GPP for
+       definitions and use this only as a rule-of-thumb table).
+
+3F. INDIA / REGULATORY / BAND CONTEXT
+  [V-a] TRAI, "The Standards of Quality of Service of Access (Wireline and Wireless) and Broadband (Wireline and
+       Wireless) Service Regulations, 2024" (Regulation 6 of 2024), effective 1 Oct 2024. Get the official text from
+       trai.gov.in; press coverage (MediaNama, FoneArena, Vikaspedia) summarises latency, jitter, packet-drop and
+       coverage-map duties.
+  [V]  Jio coverage-map FAQ https://www.jio.com/selfcare/coverage-map/ and Airtel https://www.airtel.in/wirelesscoverage/ :
+       RSRP >= -110 dBm outdoor prediction; indoor not guaranteed.
+  [V-a] RF Page, India operator band tables (updated Jun 2026):
+       https://www.rfpage.com/5g-frequency-bands-india/ (secondary source; contains internal inconsistencies for BSNL).
+  [V-a] nPerf India fixed-broadband barometer 2025 and Opensignal India fixed-broadband report (Aug 2025): aggregate
+       crowdsourced benchmarks - useful comparison context, not per-building evidence.
+  [V-a] DPDP Act 2023 + DPDP Rules 2025 (PIB press note, 14 Nov 2025; law-firm summaries).
+

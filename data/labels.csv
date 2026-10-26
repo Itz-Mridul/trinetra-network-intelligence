@@ -1,0 +1,7 @@
+window_id,fault_class,run_id,split,injection_ts,removal_ts,notes
+2026-10-23T08:00:00Z,normal,run_baseline_001,train,,,Morning baseline — 60 min
+2026-10-23T09:10:00Z,wan_degraded,run_20261023_F1_01,train,2026-10-23T09:00:00Z,2026-10-23T09:10:00Z,tc netem 200ms 50ms loss 5%
+2026-10-23T09:20:00Z,wan_degraded,run_20261023_F1_02,train,2026-10-23T09:15:00Z,2026-10-23T09:25:00Z,tc netem 200ms 50ms loss 5%
+2026-10-23T10:00:00Z,dns_fail,run_20261023_F3_01,train,2026-10-23T10:00:00Z,2026-10-23T10:10:00Z,iptables block port 53
+2026-10-23T11:00:00Z,coverage_weak,run_20261023_F5_01,train,2026-10-23T11:00:00Z,2026-10-23T11:10:00Z,probe moved to metal cabinet enclosure
+2026-10-23T14:00:00Z,interference,run_20261023_F6_01,train,2026-10-23T14:00:00Z,2026-10-23T14:10:00Z,iperf2 UDP flood on channel 6

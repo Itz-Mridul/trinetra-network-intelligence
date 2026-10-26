@@ -1,0 +1,621 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#f8faff">
+  <title>Trinetra Live Telemetry & Diagnostics Dashboard</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #f8faff; --panel: rgba(255, 255, 255, .95); --panel-2: rgba(239, 244, 255, .78);
+      --line: rgba(76, 112, 164, .18); --text: #0b1c30; --muted: #667b95;
+      --blue: #0053db; --cyan: #008f8b; --green: #0f8a57; --amber: #b56a00; --red: #c5304d;
+      --shadow: 0 16px 45px rgba(30, 76, 132, .10); --radius: 22px;
+    }
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body { margin: 0; min-width: 320px; color: var(--text); background: var(--bg); font-family: "Inter", sans-serif; }
+    body::before, body::after { content: ""; position: fixed; z-index: -2; border-radius: 50%; filter: blur(80px); pointer-events: none; }
+    body::before { width: 42vw; height: 42vw; left: -14vw; top: -18vw; background: rgba(31, 106, 207, .11); }
+    body::after { width: 34vw; height: 34vw; right: -12vw; top: 28vh; background: rgba(23, 181, 166, .08); }
+    button, input, select { font: inherit; }
+    button { color: inherit; cursor: pointer; }
+    button:focus-visible, input:focus-visible, select:focus-visible { outline: 2px solid var(--cyan); outline-offset: 2px; }
+    .app { min-height: 100vh; background-image: radial-gradient(rgba(0, 74, 198, .09) 1px, transparent 1px); background-size: 20px 20px; }
+    .topbar { position: sticky; top: 0; z-index: 20; display: flex; align-items: center; gap: 26px; min-height: 76px; padding: 14px clamp(18px, 4vw, 56px); border-bottom: 1px solid var(--line); background: rgba(248, 250, 255, .86); backdrop-filter: blur(22px); }
+    .brand { display: flex; align-items: center; gap: 11px; min-width: max-content; }
+    .brand-mark { position: relative; width: 34px; height: 34px; display: grid; place-items: center; border: 1px solid rgba(90,169,255,.55); border-radius: 11px; background: linear-gradient(135deg, rgba(90,169,255,.30), rgba(77,225,210,.12)); box-shadow: 0 0 28px rgba(90,169,255,.20); }
+    .brand-mark::after { content: ""; width: 9px; height: 9px; border-radius: 50%; background: var(--cyan); box-shadow: 0 0 16px var(--cyan); animation: breathe 2.2s ease-in-out infinite; }
+    .brand-name { font: 700 19px "Inter", sans-serif; letter-spacing: -.04em; }
+    .brand-name span { color: var(--cyan); }
+    .brand-tag { padding: 4px 8px; border: 1px solid var(--line); border-radius: 999px; color: var(--muted); font-size: 10px; letter-spacing: .12em; text-transform: uppercase; }
+    .nav { display: flex; gap: 5px; flex: 1; }
+    .nav button { padding: 9px 12px; border: 0; border-radius: 10px; background: transparent; color: var(--muted); font-size: 12px; transition: .25s ease; }
+    .nav button:hover, .nav button.active { color: var(--text); background: rgba(90,169,255,.12); }
+    .top-actions { display: flex; align-items: center; gap: 10px; margin-left: auto; }
+    .status-pill, .mode-pill { display: inline-flex; align-items: center; gap: 8px; padding: 8px 11px; border: 1px solid rgba(110,231,165,.25); border-radius: 999px; background: rgba(110,231,165,.08); color: var(--green); font-size: 11px; white-space: nowrap; }
+    .mode-pill { border-color: rgba(246,200,109,.3); background: rgba(246,200,109,.08); color: var(--amber); }
+    .dot { width: 7px; height: 7px; border-radius: 50%; background: currentColor; box-shadow: 0 0 12px currentColor; animation: breathe 1.7s ease-in-out infinite; }
+    .icon-btn, .ghost-btn, .primary-btn { border: 1px solid var(--line); border-radius: 11px; background: rgba(255,255,255,.82); transition: transform .2s ease, background .2s ease, border-color .2s ease; }
+    .icon-btn { width: 38px; height: 38px; display: grid; place-items: center; font-size: 17px; }
+    .ghost-btn { display: inline-flex; align-items: center; gap: 8px; padding: 10px 13px; color: var(--muted); font-size: 12px; }
+    .primary-btn { display: inline-flex; align-items: center; gap: 8px; padding: 10px 15px; border-color: rgba(90,169,255,.55); background: linear-gradient(135deg, #2378d7, #2d52bd); color: white; font-size: 12px; font-weight: 700; box-shadow: 0 10px 24px rgba(35,120,215,.25); }
+    .icon-btn:hover, .ghost-btn:hover { background: rgba(90,169,255,.14); border-color: rgba(90,169,255,.4); transform: translateY(-1px); }
+    .primary-btn:hover { transform: translateY(-2px); box-shadow: 0 14px 30px rgba(35,120,215,.35); }
+    .toolbar { display: flex; align-items: center; gap: 10px; padding: 14px clamp(18px, 4vw, 56px); border-bottom: 1px solid var(--line); background: rgba(255,255,255,.78); }
+    .search { flex: 1; max-width: 520px; position: relative; }
+    .search span { position: absolute; left: 13px; top: 50%; transform: translateY(-50%); color: var(--muted); }
+    .search input, .field input, .field select { width: 100%; padding: 11px 13px 11px 38px; border: 1px solid var(--line); border-radius: 11px; color: var(--text); background: rgba(255,255,255,.045); font-size: 12px; }
+    .search input:focus { border-color: var(--blue); box-shadow: 0 0 0 3px rgba(90,169,255,.14); outline: none; }
+    .search-results { position: absolute; z-index: 30; top: calc(100% + 8px); left: 0; right: 0; display: none; overflow: hidden; padding: 6px; border: 1px solid rgba(129,164,213,.38); border-radius: 14px; background: rgba(255,255,255,.98); box-shadow: 0 14px 34px rgba(30,76,132,.16); }
+    .search-results.open { display: grid; gap: 4px; }
+    .search-result { display: flex; align-items: center; gap: 10px; width: 100%; padding: 10px 11px; border: 0; border-radius: 10px; background: transparent; color: var(--text); text-align: left; cursor: pointer; }
+    .search-result:hover, .search-result:focus-visible { background: rgba(90,169,255,.12); outline: none; }
+    .search-result-icon { display: grid; place-items: center; width: 26px; height: 26px; border-radius: 8px; background: rgba(90,169,255,.13); color: var(--blue); font-size: 12px; }
+    .search-result-copy { min-width: 0; flex: 1; }
+    .search-result-copy strong, .search-result-copy span { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .search-result-copy strong { font-size: 11px; }
+    .search-result-copy span { margin-top: 3px; color: var(--muted); font-size: 10px; }
+    .search-empty { padding: 12px; color: var(--muted); font-size: 11px; line-height: 1.45; }
+    .field input, .field select { padding-left: 12px; }
+    select option { color: #0b1c30; }
+    .probe-select { width: auto; min-width: 214px; height: 40px; padding: 0 42px 0 14px; border: 1px solid rgba(129,164,213,.38); border-radius: 14px; color: var(--text); background-color: rgba(255,255,255,.86); background-image: linear-gradient(45deg, transparent 50%, var(--blue) 50%), linear-gradient(135deg, var(--blue) 50%, transparent 50%); background-position: calc(100% - 20px) 17px, calc(100% - 14px) 17px; background-size: 6px 6px, 6px 6px; background-repeat: no-repeat; box-shadow: 0 5px 16px rgba(30,76,132,.06); font-size: 12px; font-weight: 600; cursor: pointer; appearance: none; -webkit-appearance: none; transition: border-color .2s ease, box-shadow .2s ease, background-color .2s ease; }
+    .probe-select:hover { border-color: rgba(90,169,255,.62); background-color: #fff; }
+    .probe-select:focus { border-color: var(--blue); box-shadow: 0 0 0 3px rgba(90,169,255,.16), 0 5px 16px rgba(30,76,132,.08); outline: none; }
+    .toolbar-spacer { flex: 1; }
+    .range { display: flex; padding: 3px; border: 1px solid var(--line); border-radius: 10px; background: rgba(255,255,255,.03); }
+    .range button { border: 0; border-radius: 7px; padding: 7px 9px; background: transparent; color: var(--muted); font-size: 11px; }
+    .range button.active { background: var(--blue); color: white; box-shadow: 0 4px 12px rgba(90,169,255,.24); }
+    main { width: min(1540px, calc(100% - 36px)); margin: 0 auto; padding: 32px 0 58px; }
+    .screen { display: none; animation: screenIn .45s ease both; }
+    .screen.active { display: block; }
+    .eyebrow { display: flex; align-items: center; gap: 9px; color: var(--cyan); font-size: 10px; font-weight: 700; letter-spacing: .16em; text-transform: uppercase; }
+    .eyebrow::before { content: ""; width: 22px; height: 1px; background: var(--cyan); box-shadow: 0 0 10px var(--cyan); }
+    h1, h2, h3, p { margin: 0; }
+    h1 { margin-top: 12px; font: 600 clamp(28px, 4vw, 48px)/1.05 "Space Grotesk", sans-serif; letter-spacing: -.055em; }
+    h1 em { color: var(--blue); font-style: normal; }
+    .hero { display: flex; align-items: end; justify-content: space-between; gap: 20px; margin-bottom: 28px; }
+    .hero-copy { max-width: 720px; }
+    .hero-copy p { max-width: 650px; margin-top: 14px; color: var(--muted); font-size: 14px; line-height: 1.65; }
+    .hero-actions { display: flex; gap: 9px; flex-wrap: wrap; justify-content: end; }
+    .kpis { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-bottom: 16px; }
+    .card { position: relative; overflow: hidden; border: 1px solid rgba(129, 164, 213, .25); border-radius: var(--radius); background: linear-gradient(145deg, rgba(255,255,255,.98), rgba(247,250,255,.92)); box-shadow: 0 8px 28px rgba(30, 76, 132, .08); }
+    .card::before { content: ""; position: absolute; inset: 0; background: linear-gradient(120deg, rgba(255,255,255,.05), transparent 35%); pointer-events: none; }
+    .kpi { padding: 20px; min-height: 144px; transition: transform .3s ease, border-color .3s ease; }
+    .kpi:hover { transform: translateY(-4px); border-color: rgba(90,169,255,.4); }
+    .kpi::after { content: ""; position: absolute; width: 90px; height: 90px; right: -35px; bottom: -35px; border-radius: 50%; background: var(--accent, var(--blue)); opacity: .08; filter: blur(5px); }
+    .kpi-top, .kpi-foot, .card-head, .meta-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+    .kpi-label { color: var(--muted); font-size: 11px; letter-spacing: .08em; text-transform: uppercase; }
+    .kpi-value { margin-top: 14px; font: 600 34px "JetBrains Mono", monospace; letter-spacing: -.07em; }
+    .kpi-unit { margin-left: 5px; color: var(--muted); font-size: 12px; letter-spacing: 0; }
+    .kpi-foot { margin-top: 18px; padding-top: 11px; border-top: 1px solid var(--line); color: var(--muted); font-size: 11px; }
+    .trend { color: var(--green); }
+    .workspace { display: grid; grid-template-columns: minmax(0, 1.65fr) minmax(310px, .8fr); gap: 16px; }
+    .chart-card, .diagnostic-card, .section-card { padding: 20px; }
+    .card-title { font: 600 16px "Space Grotesk", sans-serif; }
+    .card-subtitle { margin-top: 5px; color: var(--muted); font-size: 12px; }
+    .chart-wrap { position: relative; height: 350px; margin-top: 18px; border: 1px solid var(--line); border-radius: 16px; background: rgba(239,244,255,.42); overflow: hidden; }
+    .chart-wrap::before { content: ""; position: absolute; inset: 0; background: repeating-linear-gradient(to bottom, transparent 0, transparent 54px, rgba(143,168,197,.09) 55px), repeating-linear-gradient(to right, transparent 0, transparent 94px, rgba(143,168,197,.06) 95px); }
+    .chart-labels { position: absolute; inset: 14px 14px 18px; display: flex; flex-direction: column; justify-content: space-between; pointer-events: none; color: rgba(143,168,197,.7); font: 10px "Space Grotesk", sans-serif; }
+    .chart-labels span { width: max-content; padding-right: 5px; background: rgba(248,250,255,.78); }
+    #signal-chart { position: absolute; inset: 0; width: 100%; height: 100%; }
+    #signal-area { fill: url(#areaGradient); }
+    #signal-line { fill: none; stroke: var(--cyan); stroke-width: 3; stroke-linecap: round; stroke-linejoin: round; filter: drop-shadow(0 0 7px rgba(77,225,210,.55)); }
+    #signal-dot { fill: var(--cyan); stroke: #d9fffb; stroke-width: 2; filter: drop-shadow(0 0 8px var(--cyan)); }
+    .chart-legend { display: flex; gap: 18px; margin-top: 14px; color: var(--muted); font-size: 11px; }
+    .legend { display: inline-flex; align-items: center; gap: 7px; }
+    .legend i { width: 9px; height: 9px; border-radius: 3px; background: var(--cyan); box-shadow: 0 0 8px var(--cyan); }
+    .legend i.blue { background: var(--blue); box-shadow: 0 0 8px var(--blue); }
+    .diagnostic-card { min-height: 100%; }
+    .diagnostic-score { display: grid; place-items: center; width: 122px; height: 122px; margin: 24px auto 20px; border: 1px solid rgba(110,231,165,.45); border-radius: 50%; background: radial-gradient(circle, rgba(110,231,165,.17), transparent 67%); box-shadow: 0 0 42px rgba(110,231,165,.12), inset 0 0 35px rgba(110,231,165,.08); animation: float 4s ease-in-out infinite; }
+    .diagnostic-score strong { font: 700 31px "Space Grotesk", sans-serif; }
+    .diagnostic-score span { margin-top: -28px; color: var(--green); font-size: 10px; letter-spacing: .14em; }
+    .diagnostic-note { padding: 12px; border: 1px solid rgba(110,231,165,.22); border-radius: 13px; background: rgba(110,231,165,.07); color: var(--muted); font-size: 12px; line-height: 1.55; }
+    .final-conclusion { margin-top: 16px; padding: 20px; border: 1px solid rgba(90,169,255,.28); border-radius: var(--radius); background: linear-gradient(145deg, rgba(239,247,255,.98), rgba(248,250,255,.94)); }
+    .final-conclusion.good { border-color: rgba(38,166,112,.35); }
+    .final-conclusion.warn { border-color: rgba(210,145,30,.42); }
+    .final-conclusion.bad { border-color: rgba(210,70,91,.42); }
+    .conclusion-main { margin-top: 16px; padding: 15px; border: 1px solid var(--line); border-radius: 14px; background: rgba(255,255,255,.72); color: var(--text); font: 600 17px "Space Grotesk", sans-serif; line-height: 1.4; }
+    .conclusion-copy { margin-top: 8px; color: var(--muted); font: 400 12px "Inter", sans-serif; line-height: 1.6; }
+    .conclusion-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-top: 14px; }
+    .conclusion-check { min-height: 82px; padding: 11px; border: 1px solid var(--line); border-radius: 12px; background: rgba(255,255,255,.6); }
+    .conclusion-check strong { display: block; font-size: 11px; }
+    .conclusion-check span { display: block; margin-top: 7px; color: var(--muted); font-size: 11px; line-height: 1.4; }
+    .conclusion-check.good { border-color: rgba(38,166,112,.3); }
+    .conclusion-check.warn { border-color: rgba(210,145,30,.38); }
+    .conclusion-check.bad { border-color: rgba(210,70,91,.38); }
+    .conclusion-check.missing { opacity: .72; }
+    .conclusion-action { margin-top: 14px; padding: 12px; border-radius: 12px; background: rgba(90,169,255,.08); color: var(--muted); font-size: 12px; line-height: 1.55; }
+    .conclusion-action strong { color: var(--text); }
+    .conclusion-table { margin-top: 14px; }
+    .conclusion-table table { width: 100%; }
+    .conclusion-table th, .conclusion-table td { padding: 9px 8px; font-size: 11px; text-align: left; vertical-align: top; }
+    .conclusion-table th { color: var(--text); }
+    .conclusion-table td { color: var(--muted); }
+    .conclusion-examples { margin-top: 13px; }
+    .conclusion-examples summary { cursor: pointer; color: var(--blue); font-size: 12px; font-weight: 600; }
+    .conclusion-examples p { margin: 9px 0 0; color: var(--muted); font-size: 11px; line-height: 1.55; }
+    .pipeline { display: grid; gap: 9px; margin-top: 18px; }
+    .step { display: flex; align-items: center; gap: 10px; padding: 10px; border: 1px solid var(--line); border-radius: 12px; background: rgba(255,255,255,.025); transition: .25s ease; }
+    .step.running { border-color: rgba(90,169,255,.55); background: rgba(90,169,255,.11); transform: translateX(4px); }
+    .step.ok { border-color: rgba(110,231,165,.25); }
+    .step-icon { display: grid; place-items: center; width: 28px; height: 28px; border-radius: 9px; background: rgba(90,169,255,.13); color: var(--blue); font-size: 14px; }
+    .step-copy { flex: 1; min-width: 0; }
+    .step-copy strong { display: block; font-size: 12px; }
+    .step-copy span { display: block; margin-top: 3px; overflow: hidden; color: var(--muted); font-size: 10px; text-overflow: ellipsis; white-space: nowrap; }
+    .step-state { color: var(--green); font-size: 10px; font-weight: 700; }
+    .step.running .step-state { color: var(--blue); animation: blink 1s infinite; }
+    .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-top: 16px; }
+    .probe-list, .event-list { display: grid; gap: 10px; margin-top: 16px; }
+    .probe { display: flex; align-items: center; gap: 12px; padding: 13px; border: 1px solid var(--line); border-radius: 14px; background: rgba(255,255,255,.025); transition: .25s ease; }
+    .probe:hover, .probe.selected { border-color: rgba(90,169,255,.55); background: rgba(90,169,255,.10); transform: translateX(3px); }
+    .probe-icon { display: grid; place-items: center; width: 34px; height: 34px; border-radius: 11px; background: rgba(77,225,210,.12); color: var(--cyan); }
+    .probe-copy { flex: 1; min-width: 0; }
+    .probe-copy strong, .probe-copy span { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .probe-copy strong { font-size: 12px; }
+    .probe-copy span { margin-top: 4px; color: var(--muted); font-size: 10px; }
+    .probe-value { text-align: right; font: 600 12px "Space Grotesk", sans-serif; }
+    .probe-value small { display: block; margin-top: 4px; color: var(--green); font: 10px "DM Sans", sans-serif; }
+    .event { display: flex; gap: 12px; padding: 12px 0; border-bottom: 1px solid var(--line); }
+    .event:last-child { border-bottom: 0; }
+    .event-mark { width: 9px; height: 9px; margin-top: 4px; border-radius: 50%; background: var(--green); box-shadow: 0 0 10px currentColor; }
+    .event-mark.warn { background: var(--amber); color: var(--amber); }
+    .event-copy { flex: 1; }
+    .event-copy strong { display: block; font-size: 12px; }
+    .event-copy span { display: block; margin-top: 4px; color: var(--muted); font-size: 11px; }
+    .table-wrap { overflow: auto; margin-top: 16px; border: 1px solid var(--line); border-radius: 15px; }
+    table { width: 100%; min-width: 600px; border-collapse: collapse; font-size: 12px; }
+    th, td { padding: 13px 14px; border-bottom: 1px solid var(--line); text-align: left; white-space: nowrap; }
+    th { color: var(--muted); background: rgba(255,255,255,.035); font-size: 10px; letter-spacing: .1em; text-transform: uppercase; }
+    tr:last-child td { border-bottom: 0; }
+    td { color: #334e6d; }
+    .status { display: inline-flex; align-items: center; gap: 6px; padding: 4px 8px; border-radius: 999px; background: rgba(110,231,165,.09); color: var(--green); font-size: 10px; font-weight: 700; }
+    .status.warn { color: var(--amber); background: rgba(246,200,109,.09); }
+    .status.bad { color: var(--red); background: rgba(255,126,145,.09); }
+    .empty { padding: 40px 20px; text-align: center; color: var(--muted); }
+    .empty strong { display: block; margin-bottom: 7px; color: var(--text); font: 600 17px "Space Grotesk", sans-serif; }
+    .modal-backdrop { position: fixed; inset: 0; z-index: 50; display: none; place-items: center; padding: 18px; background: rgba(0,0,0,.62); backdrop-filter: blur(12px); }
+    .modal-backdrop.open { display: grid; animation: fadeIn .2s ease both; }
+    .modal { width: min(540px, 100%); padding: 22px; border: 1px solid rgba(90,169,255,.35); border-radius: 22px; background: #ffffff; box-shadow: 0 30px 100px rgba(30,60,110,.24); animation: modalIn .3s ease both; }
+    .modal-head { display: flex; align-items: start; justify-content: space-between; gap: 14px; margin-bottom: 20px; }
+    .modal h2 { font: 600 20px "Space Grotesk", sans-serif; }
+    .modal p { margin-top: 5px; color: var(--muted); font-size: 12px; line-height: 1.5; }
+    .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 13px; }
+    .field { display: grid; gap: 7px; }
+    .field.full { grid-column: 1/-1; }
+    .field label { color: var(--muted); font-size: 11px; }
+    .field input, .field select { padding: 10px 12px; }
+    .modal-actions { display: flex; justify-content: end; gap: 9px; margin-top: 22px; }
+    .help-modal { width: min(900px, 100%); max-height: min(760px, 90vh); overflow: auto; }
+    .guide-hero { padding: 16px; border: 1px solid rgba(0,83,219,.18); border-radius: 15px; background: linear-gradient(135deg, rgba(0,83,219,.08), rgba(0,143,139,.07)); }
+    .guide-hero strong { display: block; color: var(--blue); font: 600 18px "Space Grotesk", sans-serif; }
+    .guide-hero p { margin-top: 7px; }
+    .guide-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; margin-top: 14px; }
+    .guide-card { padding: 14px; border: 1px solid var(--line); border-radius: 14px; background: rgba(239,244,255,.48); }
+    .guide-card h3 { color: var(--text); font: 600 13px "Space Grotesk", sans-serif; }
+    .guide-card p, .guide-card li { margin-top: 6px; color: var(--muted); font-size: 11px; line-height: 1.55; }
+    .guide-card ul { margin: 6px 0 0; padding-left: 17px; }
+    .guide-flow { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-top: 14px; }
+    .guide-node { flex: 1; padding: 11px 8px; border: 1px solid var(--line); border-radius: 12px; background: #fff; text-align: center; color: var(--blue); font-size: 11px; font-weight: 700; }
+    .guide-arrow { color: var(--cyan); font-size: 18px; }
+    .guide-colors { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 9px; }
+    .guide-color { display: inline-flex; align-items: center; gap: 6px; color: var(--muted); font-size: 11px; }
+    .guide-color i { width: 9px; height: 9px; border-radius: 50%; background: var(--green); box-shadow: 0 0 0 4px rgba(15,138,87,.12); }
+    .guide-color i.blue { background: var(--blue); box-shadow: 0 0 0 4px rgba(0,83,219,.12); }
+    .guide-color i.amber { background: var(--amber); box-shadow: 0 0 0 4px rgba(181,106,0,.12); }
+    .guide-color i.red { background: var(--red); box-shadow: 0 0 0 4px rgba(197,48,77,.12); }
+    @media (max-width: 640px) {
+      .guide-grid { grid-template-columns: 1fr; }
+      .guide-flow { align-items: stretch; flex-direction: column; }
+      .guide-arrow { transform: rotate(90deg); align-self: center; }
+    }
+    .guide-color { display: inline-flex; align-items: center; gap: 6px; color: var(--muted); font-size: 11px; }
+    .guide-color i { width: 9px; height: 9px; border-radius: 50%; background: var(--green); }
+    .guide-color i.blue { background: var(--blue); }.guide-color i.amber { background: var(--amber); }.guide-color i.red { background: var(--red); }
+    .toast { position: fixed; right: 22px; bottom: 22px; z-index: 80; max-width: 360px; padding: 13px 16px; border: 1px solid rgba(90,169,255,.45); border-radius: 13px; background: #ffffff; color: var(--text); box-shadow: var(--shadow); transform: translateY(20px); opacity: 0; pointer-events: none; transition: .3s ease; font-size: 12px; }
+    .toast.show { opacity: 1; transform: translateY(0); }
+    .loading { position: fixed; inset: 0; z-index: 100; display: grid; place-items: center; background: var(--bg); transition: opacity .5s ease, visibility .5s ease; }
+    .loading.done { opacity: 0; visibility: hidden; pointer-events: none; }
+    .loader { width: 55px; height: 55px; border: 2px solid var(--line); border-top-color: var(--cyan); border-radius: 50%; animation: spin 1s linear infinite; }
+    .loader-copy { margin-top: 17px; color: var(--muted); font-size: 12px; text-align: center; }
+    .telemetry { font-family: "JetBrains Mono", monospace; }
+    .clock { display: inline-flex; align-items: center; gap: 7px; padding: 8px 10px; border: 1px solid var(--line); border-radius: 10px; background: rgba(239,244,255,.75); color: var(--muted); font: 600 10px "JetBrains Mono", monospace; white-space: nowrap; }
+    .burst-matrix { display: grid; grid-template-columns: repeat(25, 1fr); gap: 3px; margin-top: 15px; }
+    .burst-matrix i { height: 8px; border-radius: 3px; background: #22c55e; box-shadow: 0 0 7px rgba(34,197,94,.22); animation: burstIn .45s ease both; }
+    .burst-matrix i.warn { background: #f59e0b; box-shadow: 0 0 7px rgba(245,158,11,.25); }
+    .burst-matrix i.bad { background: #ef4444; box-shadow: 0 0 7px rgba(239,68,68,.25); }
+    .wide-grid { display: grid; grid-template-columns: minmax(0, 1.35fr) minmax(310px, .85fr); gap: 16px; margin-top: 16px; }
+    .spectrum-box { position: relative; height: 190px; margin-top: 16px; overflow: hidden; border: 1px solid var(--line); border-radius: 15px; background: linear-gradient(180deg, rgba(239,244,255,.82), rgba(255,255,255,.7)); }
+    #spectrum-chart { width: 100%; height: 100%; }
+    .spectrum-meta { display: flex; justify-content: space-between; gap: 12px; margin-top: 12px; color: var(--muted); font-size: 11px; }
+    .spectrum-meta strong { color: var(--blue); font-family: "JetBrains Mono", monospace; }
+    .hardware-dock { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; margin-top: 16px; }
+    .dock-item { min-width: 0; padding: 12px; border: 1px solid var(--line); border-radius: 13px; background: rgba(239,244,255,.55); }
+    .dock-item span { display: block; color: var(--muted); font-size: 10px; text-transform: uppercase; letter-spacing: .08em; }
+    .dock-item strong { display: block; overflow: hidden; margin-top: 6px; color: var(--text); font: 600 11px "JetBrains Mono", monospace; text-overflow: ellipsis; white-space: nowrap; }
+    .hidden { display: none !important; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    @keyframes breathe { 0%,100% { opacity: .72; transform: scale(.92); } 50% { opacity: 1; transform: scale(1.08); } }
+    @keyframes float { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-5px); } }
+    @keyframes blink { 50% { opacity: .35; } }
+    @keyframes screenIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+    @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+    @keyframes modalIn { from { opacity: 0; transform: translateY(10px) scale(.98); } to { opacity: 1; transform: translateY(0) scale(1); } }
+    @keyframes burstIn { from { opacity: .2; transform: scaleY(.2); } to { opacity: 1; transform: scaleY(1); } }
+    @media (max-width: 1100px) { .topbar { gap: 14px; } .status-pill { display: none; } .kpis { grid-template-columns: repeat(2, 1fr); } .workspace, .wide-grid { grid-template-columns: 1fr; } }
+    @media (max-width: 760px) { .topbar { flex-wrap: wrap; } .nav { order: 3; flex-basis: 100%; overflow: auto; } .top-actions { margin-left: auto; } .brand-tag { display: none; } .toolbar { flex-wrap: wrap; } .toolbar-spacer { display: none; } .search { max-width: none; flex-basis: 100%; } .probe-select { width: 100%; min-width: 0; } .hero { align-items: start; flex-direction: column; } .hero-actions { justify-content: start; } .grid-2 { grid-template-columns: 1fr; } .conclusion-grid { grid-template-columns: repeat(2, 1fr); } }
+    @media (max-width: 500px) { main { width: min(100% - 24px, 1540px); padding-top: 24px; } .kpis { grid-template-columns: 1fr; } .kpi-value { font-size: 30px; } .top-actions .mode-pill { display: none; } .form-grid { grid-template-columns: 1fr; } .field.full { grid-column: auto; } .conclusion-grid { grid-template-columns: 1fr; } }
+    @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; scroll-behavior: auto !important; transition-duration: .01ms !important; } }
+    .plain-verdict { margin: 0 0 16px; padding: 20px; border: 1px solid rgba(90,169,255,.28); border-radius: var(--radius); background: linear-gradient(135deg, rgba(231,242,255,.98), rgba(248,251,255,.94)); box-shadow: 0 8px 28px rgba(30,76,132,.08); }
+    .plain-verdict.good { border-color: rgba(15,138,87,.28); background: linear-gradient(135deg, rgba(232,252,242,.98), rgba(248,251,255,.94)); }
+    .plain-verdict.warn { border-color: rgba(181,106,0,.32); background: linear-gradient(135deg, rgba(255,248,232,.98), rgba(248,251,255,.94)); }
+    .plain-verdict.bad { border-color: rgba(197,48,77,.32); background: linear-gradient(135deg, rgba(255,237,241,.98), rgba(248,251,255,.94)); }
+    .plain-verdict-head { display:flex; align-items:center; justify-content:space-between; gap:12px; }
+    .plain-verdict-label { color: var(--muted); font-size:10px; font-weight:700; letter-spacing:.14em; text-transform:uppercase; }
+    .plain-verdict h2 { margin-top:7px; font:600 clamp(20px,2.6vw,30px)/1.1 "Space Grotesk",sans-serif; letter-spacing:-.04em; }
+    .plain-verdict p { margin-top:9px; color:var(--muted); font-size:13px; line-height:1.6; }
+    .plain-checklist { display:grid; grid-template-columns:repeat(4,1fr); gap:8px; margin-top:16px; }
+    .plain-check { padding:10px 11px; border:1px solid var(--line); border-radius:12px; background:rgba(255,255,255,.72); }
+    .plain-check strong { display:block; font-size:11px; }
+    .plain-check span { display:block; margin-top:4px; color:var(--muted); font-size:11px; }
+    .plain-check.good strong { color:var(--green); }
+    .plain-check.warn strong { color:var(--amber); }
+    .plain-check.bad strong { color:var(--red); }
+    .plain-details { margin-top:12px; border-top:1px solid var(--line); padding-top:10px; }
+    .plain-details summary { cursor:pointer; color:var(--blue); font-size:11px; font-weight:700; }
+    .plain-details p { margin-top:9px; font-size:11px; }
+    @media (max-width: 800px) { .plain-checklist { grid-template-columns:repeat(2,1fr); } }
+  </style>
+</head>
+<body>
+  <div class="loading" id="loading"><div><div class="loader"></div><div class="loader-copy">Starting Trinetra intelligence layer…</div></div></div>
+  <div class="app">
+    <header class="topbar">
+      <div class="brand"><div class="brand-mark" aria-hidden="true"></div><div class="brand-name">Trinetra</div><span class="brand-tag">Network intelligence</span></div>
+      <nav class="nav" aria-label="Primary navigation">
+        <button class="active" data-view="dashboard">Overview</button><button data-view="probes">Probes</button><button data-view="faults">Fault analysis</button><button data-view="history">History</button>
+      </nav>
+      <div class="top-actions"><div class="status-pill" id="status-pill"><i class="dot"></i><span id="status-text">Connecting to live telemetry…</span></div><div class="mode-pill" id="mode-pill">LIVE ONLY</div><div class="clock"><span>◷</span><span id="telemetry-clock">IST --:--:--</span><b>1000ms</b></div><button class="icon-btn" data-action="help" title="How Trinetra works">?</button><button class="icon-btn" data-action="fullscreen" title="Toggle full screen">⛶</button><button class="icon-btn" data-action="settings" title="Connection settings">⚙</button></div>
+    </header>
+    <section class="toolbar">
+      <div class="search"><span>⌕</span><input id="search" type="search" placeholder="Search probes, rooms, BSSID, ISP or fault…" aria-label="Search dashboard" autocomplete="off"><div class="search-results" id="search-results" role="listbox" aria-label="Search results"></div></div>
+      <div class="toolbar-spacer"></div>
+      <select id="probe-select" class="probe-select" aria-label="Selected probe"><option value="">Loading live probes…</option></select>
+      <div class="range" aria-label="Time range"><button data-range="1m">1m</button><button data-range="5m" class="active">5m</button><button data-range="15m">15m</button><button data-range="1h">1h</button></div>
+      <button class="ghost-btn" data-action="pause" id="pause-btn">Ⅱ Pause</button><button class="primary-btn" data-action="trace">✦ Run trace</button><button class="ghost-btn" data-action="export">⇩ Export CSV</button>
+    </section>
+
+    <main>
+      <section class="screen active" data-screen="dashboard">
+      <div class="hero"><div class="hero-copy"><div class="eyebrow">Cross-layer observability</div><h1>See the signal behind <em>every outage.</em></h1><p>Trinetra correlates Wi-Fi radio health, gateway latency, Pi loopback and WAN evidence from the connected hardware and Pi collector.</p></div></div>
+        <div class="kpis">
+          <article class="card kpi" style="--accent:var(--cyan)"><div class="kpi-top"><span class="kpi-label" id="kpi-primary-label">Wi-Fi signal</span><span>◌</span></div><div><span class="kpi-value" id="kpi-rssi">–</span><span class="kpi-unit" id="kpi-primary-unit">dBm</span></div><div class="kpi-foot"><span id="kpi-rssi-label">Waiting for telemetry</span><span class="trend" id="kpi-rssi-trend">—</span></div><div class="burst-matrix" id="signal-bars" aria-label="Signal strength"></div></article>
+          <article class="card kpi" style="--accent:var(--blue)"><div class="kpi-top"><span class="kpi-label">Gateway RTT</span><span>↝</span></div><div><span class="kpi-value" id="kpi-gw">–</span><span class="kpi-unit">ms</span></div><div class="kpi-foot"><span>Local network path</span><span class="trend" id="kpi-gw-loss">—</span></div></article>
+          <article class="card kpi" style="--accent:var(--green)"><div class="kpi-top"><span class="kpi-label">Pi loopback</span><span>⌁</span></div><div><span class="kpi-value" id="kpi-pi">–</span><span class="kpi-unit">ms</span></div><div class="kpi-foot"><span>Probe to collector</span><span class="trend" id="kpi-pi-loss">—</span></div></article>
+          <article class="card kpi" style="--accent:var(--amber)"><div class="kpi-top"><span class="kpi-label">Frame loss</span><span>◈</span></div><div><span class="kpi-value" id="kpi-loss">–</span><span class="kpi-unit">%</span></div><div class="burst-matrix" id="burst-matrix" aria-label="Packet burst matrix"></div><div class="kpi-foot"><span>25-sample burst audit</span><span class="trend" id="kpi-fault">—</span></div></article>
+        </div>
+        <article class="card section-card hidden" id="phone-telemetry-card" style="margin-top:16px"><div class="card-head"><div><h2 class="card-title">Phone cellular telemetry</h2><p class="card-subtitle">Live data reported by the Nothing phone companion agent</p></div><span class="status" id="phone-status">NO DATA</span></div><div class="hardware-dock"><div class="dock-item"><span>Carrier</span><strong id="phone-carrier">Unavailable</strong></div><div class="dock-item"><span>Network</span><strong id="phone-network">Unavailable</strong></div><div class="dock-item"><span>SIM slot</span><strong id="phone-sim">Unavailable</strong></div><div class="dock-item"><span>Location</span><strong id="phone-location">Unavailable</strong></div><div class="dock-item"><span>Cell ID</span><strong id="phone-cell">Unavailable</strong></div><div class="dock-item"><span>RSRP / RSRQ / SINR</span><strong id="phone-radio">Unavailable</strong></div><div class="dock-item"><span>WAN HTTPS success</span><strong id="phone-wan-http">Unavailable</strong></div><div class="dock-item"><span>Download</span><strong id="phone-wan-download">Unavailable</strong></div></div><div class="diagnostic-note" style="margin-top:14px"><strong style="color:var(--text)">Last phone update</strong><br><span id="phone-updated">No phone telemetry received.</span></div><div class="table-wrap" style="margin-top:14px"><strong style="color:var(--text);font-size:12px">Carrier comparison</strong><table><thead><tr><th>Carrier</th><th>Session</th><th>RSRP</th><th>RSRQ</th><th>Download</th><th>HTTPS</th><th>Samples</th></tr></thead><tbody id="carrier-comparison-table"><tr><td colspan="7" style="color:var(--muted)">Collect Jio and BSNL sessions to compare them.</td></tr></tbody></table></div></article>
+        <article class="card section-card" id="network-identity-card"><div class="card-head"><div><h2 class="card-title">Network identity and location</h2><p class="card-subtitle">Router, public Internet, ISP, and location evidence reported by the Raspberry Pi</p></div><span class="status" id="identity-status">WAITING</span></div><div class="hardware-dock"><div class="dock-item"><span>Pi local IP</span><strong id="identity-local-ip">Unavailable</strong></div><div class="dock-item"><span>Router gateway</span><strong id="identity-gateway">Unavailable</strong></div><div class="dock-item"><span>Router MAC</span><strong id="identity-router">Unavailable</strong></div><div class="dock-item"><span>Interface / SSID</span><strong id="identity-interface">Unavailable</strong></div><div class="dock-item"><span>Public IP</span><strong id="identity-public-ip">Unavailable</strong></div><div class="dock-item"><span>ISP / ASN</span><strong id="identity-isp">Unavailable</strong></div><div class="dock-item"><span>Public-IP area</span><strong id="identity-area">Unavailable</strong></div><div class="dock-item"><span>Public-IP coordinates</span><strong id="identity-public-location">Unavailable</strong></div></div><div class="diagnostic-note" style="margin-top:14px"><strong style="color:var(--text)">Phone GPS location</strong><br><span id="identity-phone-location">Unavailable until phone telemetry reports coordinates.</span></div></article>
+        <section class="plain-verdict" id="plain-verdict" aria-live="polite"><div class="plain-verdict-head"><div><div class="plain-verdict-label">What is happening?</div><h2 id="plain-verdict-title">Waiting for live evidence…</h2></div><span class="status" id="plain-verdict-status">WAITING</span></div><p id="plain-verdict-copy">Trinetra is checking the Wi-Fi, router, Raspberry Pi, and outside Internet paths.</p><div class="plain-checklist"><div class="plain-check" id="plain-rf"><strong>Wi-Fi</strong><span>Waiting</span></div><div class="plain-check" id="plain-lan"><strong>Home router</strong><span>Waiting</span></div><div class="plain-check" id="plain-wan"><strong>Outside Internet</strong><span>Waiting</span></div><div class="plain-check" id="plain-health"><strong>Trinetra sensors</strong><span>Waiting</span></div></div><details class="plain-details"><summary>Show technical details</summary><p id="plain-technical">Raw measurements will appear here when live data arrives.</p></details></section>
+        <div class="workspace">
+          <article class="card chart-card"><div class="card-head"><div><h2 class="card-title">Live telemetry waveform</h2><p class="card-subtitle" id="chart-subtitle">RSSI and latency over the selected window</p></div><span class="status" id="chart-status"><i class="dot"></i> LIVE</span></div><div class="chart-wrap"><div class="chart-labels"><span id="chart-label-top">-30 dBm · excellent</span><span id="chart-label-good">-50 dBm · healthy</span><span id="chart-label-warn">-70 dBm · warning</span><span id="chart-label-bottom">-90 dBm · critical</span></div><svg id="signal-chart" viewBox="0 0 1000 320" preserveAspectRatio="none" aria-label="Live telemetry waveform"><defs><linearGradient id="areaGradient" x1="0" x2="0" y1="0" y2="1"><stop offset="0" stop-color="#4de1d2" stop-opacity=".34"/><stop offset="1" stop-color="#4de1d2" stop-opacity="0"/></linearGradient></defs><path id="signal-area"></path><path id="signal-line"></path><circle id="signal-dot" cx="980" cy="120" r="6"></circle></svg></div><div class="chart-legend"><span class="legend"><i></i><span id="chart-legend-primary">RSSI calibrated</span></span><span class="legend"><i class="blue"></i>Live sample stream</span><span id="chart-updated">No samples yet</span></div></article>
+          <article class="card diagnostic-card"><div class="card-head"><div><h2 class="card-title">System confidence</h2><p class="card-subtitle">Cross-layer attribution engine</p></div><span id="cycle-label" style="color:var(--muted);font-size:10px">CYCLE 000</span></div><div class="diagnostic-score" id="diagnostic-score"><strong id="score">–</strong><span>CONFIDENCE</span></div><div class="diagnostic-note" id="diagnostic-note">Waiting for enough evidence to classify the network.</div><div class="pipeline"><div class="step ok" data-step="rf"><div class="step-icon">⌁</div><div class="step-copy"><strong>RF / Wi-Fi layer</strong><span id="step-rf">Waiting</span></div><b class="step-state">READY</b></div><div class="step ok" data-step="lan"><div class="step-icon">↝</div><div class="step-copy"><strong>Gateway / LAN layer</strong><span id="step-lan">Waiting</span></div><b class="step-state">READY</b></div><div class="step ok" data-step="wan"><div class="step-icon">◎</div><div class="step-copy"><strong>WAN / DNS layer</strong><span id="step-wan">Waiting</span></div><b class="step-state">READY</b></div><div class="step ok" data-step="health"><div class="step-icon">▣</div><div class="step-copy"><strong>Collector health</strong><span id="step-health">Waiting</span></div><b class="step-state">READY</b></div></div><button class="primary-btn" data-action="trace" style="width:100%;justify-content:center;margin-top:18px">✦ Run deep diagnostic trace</button></article>
+        </div>
+        <div class="grid-2"><article class="card section-card"><div class="card-head"><div><h2 class="card-title">Sensor nodes</h2><p class="card-subtitle">Click a node to focus its telemetry</p></div><span class="status" id="node-count">0 online</span></div><div class="probe-list" id="probe-list"></div></article><article class="card section-card"><div class="card-head"><div><h2 class="card-title">Recent events</h2><p class="card-subtitle">Live diagnostic activity</p></div><button class="ghost-btn" data-view="history">View all</button></div><div class="event-list" id="event-list"></div></article></div>
+        <div class="wide-grid">
+          <article class="card section-card"><div class="card-head"><div><h2 class="card-title">RF environment & channel spectrum</h2><p class="card-subtitle">Neighbor occupancy and co-channel overlap assessment</p></div><span class="status" id="spectrum-status">CLEAN</span></div><div class="spectrum-box"><svg id="spectrum-chart" viewBox="0 0 800 190" preserveAspectRatio="none" aria-label="Channel spectrum"><defs><linearGradient id="spectrumFill" x1="0" x2="0" y1="0" y2="1"><stop offset="0" stop-color="#2563eb" stop-opacity=".3"/><stop offset="1" stop-color="#2563eb" stop-opacity=".02"/></linearGradient></defs><path id="spectrum-main" fill="url(#spectrumFill)" stroke="#2563eb" stroke-width="2.5"></path><path id="spectrum-neighbor" fill="rgba(245,158,11,.16)" stroke="#f59e0b" stroke-width="2"></path><line x1="0" y1="166" x2="800" y2="166" stroke="#9ab3d1" stroke-opacity=".35"></line><text id="spectrum-channel" x="400" y="28" text-anchor="middle" fill="#1d4ed8" font-size="13" font-weight="700">Channel 6 · 20 MHz</text></svg></div><div class="spectrum-meta"><span>Visible APs <strong id="spectrum-total">–</strong></span><span>On channel <strong id="spectrum-on-channel">–</strong></span><span>Current <strong id="spectrum-current">–</strong></span></div><div class="table-wrap"><table><thead><tr><th>SSID / Node</th><th>BSSID</th><th>Channel</th><th>RSSI</th><th>Contention</th></tr></thead><tbody id="spectrum-table"></tbody></table></div></article>
+          <article class="card section-card"><div class="card-head"><div><h2 class="card-title">Hardware & RF dock</h2><p class="card-subtitle">Target node parameters</p></div><span class="status">SYNCHRONIZED</span></div><div class="hardware-dock"><div class="dock-item"><span>Target BSSID</span><strong id="dock-bssid">–</strong></div><div class="dock-item"><span>Radio interface</span><strong id="dock-radio">wlan0 · 2.4 GHz</strong></div><div class="dock-item"><span>Center channel</span><strong id="dock-freq">–</strong></div><div class="dock-item"><span>Cipher / auth</span><strong id="dock-cipher">WPA2 / WPA3</strong></div><div class="dock-item"><span>Free heap / SRAM</span><strong id="dock-heap">–</strong></div><div class="dock-item"><span>Pi core health</span><strong id="dock-pi-stats">–</strong></div></div><div class="diagnostic-note" style="margin-top:14px"><strong style="color:var(--text)">Scientific readout</strong><br><span id="dock-readout">Waiting for calibrated telemetry.</span></div></article>
+        </div>
+        <section class="final-conclusion" id="final-conclusion" aria-live="polite"><div class="card-head"><div><div class="eyebrow">What this location is telling you</div><h2 class="card-title">Final conclusion</h2><p class="card-subtitle">A plain-language decision based on signal, local connection, Internet checks, carrier evidence, and data quality</p></div><span class="status warn" id="final-conclusion-status">WAITING</span></div><div class="conclusion-main" id="final-conclusion-main">Waiting for enough live measurements.</div><div class="conclusion-copy" id="final-conclusion-copy">Trinetra will compare the signal, local router path, outside Internet, carrier data, and sensor freshness before giving a conclusion.</div><div class="conclusion-grid"><div class="conclusion-check missing" id="conclusion-signal"><strong>Signal</strong><span>Waiting</span></div><div class="conclusion-check missing" id="conclusion-local"><strong>Router / local path</strong><span>Waiting</span></div><div class="conclusion-check missing" id="conclusion-internet"><strong>Outside Internet</strong><span>Waiting</span></div><div class="conclusion-check missing" id="conclusion-data"><strong>Data quality</strong><span>Waiting</span></div></div><div class="conclusion-action" id="final-conclusion-action"><strong>Recommended next step:</strong> collect live data for a few minutes before making a location or ISP decision.</div><div class="conclusion-table table-wrap"><table><thead><tr><th>What we measure</th><th>Good range</th><th>Needs attention</th><th>What it usually means</th></tr></thead><tbody><tr><td>Phone signal</td><td>better than −90 dBm</td><td>below −100 dBm</td><td>Weak values can mean the place is hard for the mobile network to reach.</td></tr><tr><td>Wi‑Fi signal</td><td>better than −65 dBm</td><td>below −75 dBm</td><td>Move the sensor/router closer or remove walls and obstacles.</td></tr><tr><td>Router response</td><td>under 20 ms and near 0% loss</td><td>over 50 ms or loss</td><td>The problem is probably inside the local hotspot/router path.</td></tr><tr><td>Internet access</td><td>95–100% HTTPS success</td><td>below 80%</td><td>Low success means websites may fail, not merely feel slow.</td></tr><tr><td>Download speed</td><td>25+ Mbps</td><td>below 5 Mbps</td><td>Low speed causes buffering even when the Internet is technically connected.</td></tr></tbody></table></div><details class="conclusion-examples"><summary>Simple examples</summary><p><strong>Example 1:</strong> Phone signal −108 dBm and download 2 Mbps: move near a window or outside. If it improves, the location or building is blocking the signal.</p><p><strong>Example 2:</strong> Phone signal −80 dBm, router response 15 ms, but download 2 Mbps: the signal is fine; the carrier may be busy or its backhaul may be slow.</p><p><strong>Example 3:</strong> Wi‑Fi −82 dBm and router response 120 ms, while Pi Internet is healthy: move the Wi‑Fi sensor/router or change the Wi‑Fi channel.</p><p><strong>Example 4:</strong> Router response is healthy but all HTTPS targets fail: the outside carrier/ISP path is down. Do not replace the local router first.</p></details></section>
+      </section>
+
+      <section class="screen" data-screen="probes"><div class="hero"><div class="hero-copy"><div class="eyebrow">Hardware fleet</div><h1>Probe <em>control room.</em></h1><p>Select a node to inspect its radio, link and collector health in real time.</p></div><button class="primary-btn" data-action="deploy">＋ Add sensor node</button></div><article class="card section-card"><div class="card-head"><div><h2 class="card-title">Synchronized sensor nodes</h2><p class="card-subtitle">Health is derived from the latest telemetry heartbeat.</p></div><span class="status" id="probe-screen-count">0 online</span></div><div class="probe-list" id="probe-screen-list"></div></article></section>
+
+      <section class="screen" data-screen="faults"><div class="hero"><div class="hero-copy"><div class="eyebrow">Explainable diagnosis</div><h1>Fault <em>analysis.</em></h1><p>Every verdict is backed by the same cross-layer evidence used by the Trinetra classifier.</p></div><button class="primary-btn" data-action="trace">✦ Run live trace</button></div><div class="grid-2"><article class="card section-card"><div class="card-head"><div><h2 class="card-title">Current attribution</h2><p class="card-subtitle">Most likely root cause from live evidence</p></div><span class="status" id="fault-status">WAITING</span></div><div class="diagnostic-note" id="fault-explanation" style="margin-top:18px">Waiting for live telemetry.</div><div class="pipeline" id="fault-evidence"></div></article><article class="card section-card"><div class="card-head"><div><h2 class="card-title">Connection recovery</h2><p class="card-subtitle">What to check when live data is unavailable</p></div></div><div class="diagnostic-note" style="margin-top:18px">1. Connect the ESP32 to the Wi‑Fi network at the survey site.<br>2. Set the MQTT broker to the Raspberry Pi address or <strong>piprobe.local:1883</strong>.<br>3. Confirm the Pi MQTT bridge, WAN collector, dashboard and InfluxDB are running.<br>4. Refresh this page after restoring the connection.</div></article></div></section>
+
+      <section class="screen" data-screen="history"><div class="hero"><div class="hero-copy"><div class="eyebrow">Telemetry archive</div><h1>Evidence <em>over time.</em></h1><p>Review the latest samples and export a portable CSV for analysis or reporting.</p></div><button class="primary-btn" data-action="export">⇩ Export selected window</button></div><article class="card section-card"><div class="card-head"><div><h2 class="card-title">Telemetry samples</h2><p class="card-subtitle" id="history-subtitle">Latest samples for the selected probe</p></div><span class="status" id="history-count">0 samples</span></div><div class="table-wrap"><table><thead><tr><th>Time</th><th>Probe</th><th>RSSI</th><th>Gateway RTT</th><th>Pi RTT</th><th>Loss</th><th>Classification</th></tr></thead><tbody id="history-table"></tbody></table><div class="empty hidden" id="history-empty"><strong>No samples match this filter</strong>Try changing the search or time range.</div></div></article></section>
+    </main>
+  </div>
+
+  <div class="modal-backdrop" id="settings-modal" role="dialog" aria-modal="true" aria-labelledby="settings-title"><div class="modal"><div class="modal-head"><div><h2 id="settings-title">Connection settings</h2><p>This dashboard is live-only. It reads Trinetra's InfluxDB records and never substitutes simulated telemetry.</p></div><button class="icon-btn" data-action="close-settings" aria-label="Close settings">×</button></div><div class="form-grid"><div class="field"><label for="setting-host">InfluxDB host</label><input id="setting-host" placeholder="localhost"></div><div class="field"><label for="setting-port">Port</label><input id="setting-port" type="number" placeholder="8086"></div><div class="field"><label for="setting-db">InfluxDB 1.x database</label><input id="setting-db" placeholder="piprobe"></div></div><div class="modal-actions"><button class="ghost-btn" data-action="close-settings">Cancel</button><button class="primary-btn" data-action="save-settings">Save and reconnect</button></div></div></div>
+  <div class="modal-backdrop" id="help-modal" role="dialog" aria-modal="true" aria-labelledby="help-title"><div class="modal help-modal"><div class="modal-head"><div><h2 id="help-title">What is Trinetra?</h2><p>A portable network diagnostic system. It replaces guessing with evidence.</p></div><button class="icon-btn" data-action="close-help" aria-label="Close help">×</button></div><div class="guide-hero"><strong>When the connection fails, Trinetra tells you why.</strong><p>Carry ESP32 sensors and a Raspberry Pi to the site under test. The Pi collects reports, compares the layers, and turns the results into this live dashboard.</p><div class="guide-flow"><div class="guide-node">ESP32 sensor<br><span style="font-weight:400;color:var(--muted)">measures Wi-Fi</span></div><span class="guide-arrow">→</span><div class="guide-node">Raspberry Pi hub<br><span style="font-weight:400;color:var(--muted)">stores evidence</span></div><span class="guide-arrow">→</span><div class="guide-node">This dashboard<br><span style="font-weight:400;color:var(--muted)">explains the fault</span></div></div></div><div class="guide-grid"><div class="guide-card"><h3>📡 Wi-Fi signal</h3><p>RSSI is signal strength. Numbers closer to zero are stronger: −30 to −50 dBm is excellent; below −75 dBm is a likely dead zone.</p></div><div class="guide-card"><h3>🌐 Gateway RTT</h3><p>Round-trip time to the local gateway. High or unstable RTT usually points to local congestion or interference.</p></div><div class="guide-card"><h3>🍓 Pi loopback</h3><p>Checks whether the sensor can reach the Raspberry Pi hub. This separates a local network problem from an outside ISP problem.</p></div><div class="guide-card"><h3>📉 Packet loss</h3><p>Lost packets create buffering, glitches, and dropped calls. Zero is ideal; sustained loss above 10% is serious.</p></div><div class="guide-card"><h3>🩺 Four-layer checklist</h3><ul><li>RF: is the Wi-Fi radio healthy?</li><li>Gateway: is the router responding?</li><li>Device: is the sensor healthy?</li><li>WAN: can the outside Internet be reached?</li></ul></div><div class="guide-card"><h3>🎨 Color language</h3><div class="guide-colors"><span class="guide-color"><i></i>Optimal</span><span class="guide-color"><i class="blue"></i>Good</span><span class="guide-color"><i class="amber"></i>Warning</span><span class="guide-color"><i class="red"></i>Critical</span></div><p>Example: good Wi-Fi plus failed WAN means the ISP path is likely down—not the sensor's local network.</p></div></div><div class="modal-actions"><button class="primary-btn" data-action="close-help">Got it</button></div></div></div>
+  <div class="toast" id="toast" role="status"></div>
+
+  <script>
+    (() => {
+      "use strict";
+      const params = new URLSearchParams(location.search);
+      const savedHost = localStorage.getItem("piprobe.host");
+      const defaultHost = params.get("host") || (location.protocol === "file:" && (!savedHost || savedHost === "localhost") ? "trinetra.local" : savedHost || location.hostname || "trinetra.local");
+      const dashboardProxy = params.get("proxy") || (location.protocol === "file:" ? `http://${defaultHost}:8888` : "");
+      const state = {
+        host: defaultHost,
+        port: localStorage.getItem("piprobe.port") || params.get("port") || "8086",
+        db: localStorage.getItem("piprobe.db") || params.get("db") || "piprobe",
+        range: "5m", selectedProbe: localStorage.getItem("piprobe.probe") || "", search: "",
+        paused: false, cycle: 0, source: "connecting", stale: false, error: "", history: [], latest: null, events: [], probes: [], lastProbeLoad: 0, selectedLayer: "wifi"
+      };
+      const $ = (s, root = document) => root.querySelector(s);
+      const $$ = (s, root = document) => [...root.querySelectorAll(s)];
+      const clamp = (n, a, b) => Math.max(a, Math.min(b, n));
+      const fmt = (n, digits = 1, fallback = "–") => Number.isFinite(Number(n)) ? Number(n).toFixed(digits) : fallback;
+      const num = (value) => value === null || value === undefined || value === "" ? NaN : Number(value);
+      const display = (value, fallback = "Unavailable") => value === null || value === undefined || value === "" || (typeof value === "number" && !Number.isFinite(value)) ? fallback : String(value);
+      const rangeMinutes = () => ({ "1m": 1, "5m": 5, "15m": 15, "1h": 60 }[state.range] || 5);
+      const rangeCount = () => Math.max(12, Math.min(120, rangeMinutes() * 6));
+
+      function toast(message) { const el = $("#toast"); el.textContent = message; el.classList.add("show"); clearTimeout(toast.timer); toast.timer = setTimeout(() => el.classList.remove("show"), 3400); }
+      function timeLabel(ts) { return new Date(ts).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" }); }
+      function setStatus(text, kind = "live") { const pill = $("#status-pill"); pill.className = `status-pill ${kind}`; $("#status-text").textContent = text; if (kind === "warn") { pill.style.color = "var(--amber)"; pill.style.borderColor = "rgba(246,200,109,.3)"; } else if (kind === "bad") { pill.style.color = "var(--red)"; pill.style.borderColor = "rgba(255,126,145,.35)"; } else { pill.style.color = "var(--green)"; pill.style.borderColor = "rgba(110,231,165,.25)"; } }
+      function classification(d) {
+        if (d.fault_class && d.fault_class !== "normal") return d.fault_class;
+        const wan = d.wan || (d.layer === "wan" ? d : null);
+        const hasWanEvidence = wan && (
+          Number.isFinite(wan.httpSuccess) || Number.isFinite(wan.download) ||
+          Number.isFinite(wan.dns) || Number.isFinite(wan.http)
+        );
+        const hasHttpsEvidence = Number.isFinite(wan?.httpSuccess);
+        const hasDownloadEvidence = Number.isFinite(wan?.download) && wan.download >= 0;
+        const wanDown = hasWanEvidence && (
+          hasHttpsEvidence ? wan.httpSuccess < 34 :
+          hasDownloadEvidence ? false :
+          (Number.isFinite(wan.http) && wan.http < 0 && Number.isFinite(wan.loss) && wan.loss >= 80)
+        );
+        const wanDegraded = hasWanEvidence && (
+          (hasHttpsEvidence && wan.httpSuccess < 80) ||
+          (hasDownloadEvidence && wan.download < 5) ||
+          (!hasHttpsEvidence && !hasDownloadEvidence && ((Number.isFinite(wan.http) && wan.http > 800) || (Number.isFinite(wan.loss) && wan.loss > 4)))
+        );
+        if (d.layer === "phone") {
+          const weak = Number.isFinite(d.rssi) && d.rssi < -105;
+          if (weak && wanDown) return "coverage_weak";
+          if (weak && wanDegraded) return "inconclusive";
+          if (!weak && wanDown) return "wan_down";
+          if (!weak && wanDegraded) return "wan_degraded";
+          return hasWanEvidence ? "normal" : "inconclusive";
+        }
+        if (d.layer === "wan") {
+          if (wanDown) return "wan_down";
+          if (wanDegraded) return "wan_degraded";
+          return hasWanEvidence ? "normal" : "inconclusive";
+        }
+        if (d.wan && wanDown) return "wan_down";
+        if (d.wan && wanDegraded) return "wan_degraded";
+        if (d.loss >= 50 && d.gw < 10) return "wan_down";
+        if (d.gwLoss > 4 || d.gw > 40) return "wan_degraded";
+        if (d.rssi < -75 && d.gw > 20) return "coverage_weak";
+        if (d.rssi > -68 && (d.gwLoss > 3 || d.jitter > 10) && d.ap >= 3) return "interference";
+        return "normal";
+      }
+      function userFaultLabel(fault) { return ({ normal: "Connection looks healthy", wan_degraded: "Internet is slow", wan_down: "Internet is not reachable", coverage_weak: "Signal is weak here", interference: "Wi‑Fi is crowded", ap_overload: "Wi‑Fi network is busy", lan_congested: "Local router is slow", probe_fault: "Sensor is not reporting", inconclusive: "Not enough data" }[fault] || String(fault || "Not enough data").replace(/_/g, " ")); }
+      function setSource(source, message) { state.source = source; $("#mode-pill").textContent = source === "live" ? "LIVE DATA" : "LIVE ERROR"; setStatus(source === "live" ? "Live telemetry" : "Live data unavailable", source === "live" ? "live" : "bad"); if (message) toast(message); }
+
+      function influxRegex(value) { return String(value).replace(/[\\^$.*+?()[\]{}|/]/g, "\\$&"); }
+      async function queryInflux1(query) { const proxy = location.port === "8888" ? "" : dashboardProxy; const url = proxy !== "" || location.port === "8888" ? `${proxy}/api/influx/query?db=${encodeURIComponent(state.db)}&q=${encodeURIComponent(query)}` : `http://${state.host}:${state.port}/query?db=${encodeURIComponent(state.db)}&q=${encodeURIComponent(query)}`; const res = await fetch(url, { cache: "no-store" }); if (!res.ok) throw new Error(`InfluxDB returned ${res.status}`); const body = await res.json(); if (body.error) throw new Error(body.error); return body; }
+      function normalizeLatest(out, tags = {}) { const layer = tags.layer || out.layer || state.selectedLayer || "wifi", isGateway = layer === "wan", isPhone = layer === "phone"; const gatewayRtt = num(out.gw_rtt_mean_ms); const gatewayLoss = num(out.gw_loss_pct); const internetLoss = num(out.inet_loss_pct); return { t: Date.parse(out.time || out._time) || Date.now(), probe_id: tags.probe_id || out.probe_id || state.selectedProbe, site_id: tags.site_id || out.site_id || "unassigned_site", session_id: tags.session_id || out.session_id || "unknown_session", location_id: tags.location_id || out.location_id || tags.room_id || out.room_id || "unknown", room_id: tags.room_id || out.room_id || "unknown", layer, rssi: isGateway ? num(out.inet_rtt_mean_ms) : isPhone ? num(out.rsrp_dbm) : num(out.rssi_calibrated_dbm ?? out.rssi_raw_dbm), gw: isPhone ? NaN : gatewayRtt, pi: isPhone ? NaN : isGateway ? gatewayRtt : num(out.pi_rtt_mean_ms), gwLoss: isPhone ? NaN : gatewayLoss, piLoss: isPhone ? NaN : isGateway ? gatewayLoss : num(out.pi_loss_pct), loss: isPhone ? NaN : isGateway ? internetLoss : Math.max(gatewayLoss || 0, num(out.pi_loss_pct) || 0), jitter: num(isGateway ? out.inet_rtt_std_ms : out.gw_rtt_jitter_ms), ap: num(out.ap_count_on_channel), apTotal: num(out.ap_count_total), channel: tags.channel || out.channel, bssid: tags.bssid || out.bssid, uptime: num(out.uptime_sec), heap: num(out.free_heap_bytes), dns: num(out.dns_latency_ms), http: num(out.http_ttfb_ms), httpSuccess: num(out.wan_http_success_pct), httpSuccessCount: num(out.wan_http_success_count), httpTargetCount: num(out.wan_http_target_count), download: num(out.wan_tput_dl_mbps), downloadBytes: num(out.wan_tput_dl_bytes), fault_class: tags.fault_class || out.fault_class || "normal", network: { localIp: tags.local_ip || out.local_ip, gateway: tags.gateway_ip || out.gateway_ip, routerMac: tags.router_mac || out.router_mac, interface: tags.interface_name || out.interface_name, ssid: tags.wifi_ssid || out.wifi_ssid, publicIp: tags.public_ip || out.public_ip, isp: tags.isp_org || out.isp_org, asn: tags.isp_asn || out.isp_asn, city: tags.public_city || out.public_city, region: tags.public_region || out.public_region, country: tags.public_country || out.public_country, timezone: tags.public_timezone || out.public_timezone, publicLatitude: num(out.public_latitude), publicLongitude: num(out.public_longitude) }, phone: { carrier: tags.carrier_name || out.carrier_name, network: tags.network_type || out.network_type, sim: tags.sim_slot || out.sim_slot, provider: tags.provider || out.provider, latitude: num(out.latitude), longitude: num(out.longitude), accuracy: num(out.accuracy_m), cellId: out.cell_id, rsrp: num(out.rsrp_dbm), rsrq: num(out.rsrq_db), sinr: num(out.sinr_db) } }; }
+      function parseLatest(body) { const series = body?.results?.[0]?.series || []; if (!series.length) return null; const sorted = [...series].sort((a, b) => new Date(b.values?.[0]?.[0] || 0) - new Date(a.values?.[0]?.[0] || 0)); const s = sorted[0], row = s.values?.[0] || [], out = {}; (s.columns || []).forEach((key, i) => { out[key.replace(/^last_/, "")] = row[i]; }); return normalizeLatest(out, s.tags || {}); }
+      function parseHistory(body) { const series = body?.results?.[0]?.series || []; if (!series.length) return []; const values = series[0].values || [], cols = series[0].columns || [], isGateway = state.selectedLayer === "wan", isPhone = state.selectedLayer === "phone"; return values.map(row => { const o = {}; cols.forEach((key, i) => o[key] = row[i]); const gateway = isGateway ? num(o.internet) : num(o.gateway); const rssi = isPhone ? num(o.phoneRsrp) : isGateway ? gateway : num(o.wifiRssi); const gwLoss = isGateway ? num(o.internetLoss) : num(o.wifiGwLoss); const piLoss = isGateway ? gwLoss : num(o.wifiPiLoss); return { t: Date.parse(o.time) || Date.now(), rssi, phoneSamples: num(o.phoneSamples), gw: isPhone ? NaN : gateway, pi: isPhone ? NaN : isGateway ? gateway : num(o.piRtt), loss: isPhone ? NaN : Math.max(gwLoss || 0, piLoss || 0), gwLoss, piLoss, probe_id: state.selectedProbe, fault_class: "normal" }; }).filter(d => isPhone ? (Number.isFinite(d.rssi) || d.phoneSamples > 0) : Number.isFinite(d.rssi)); }
+      function parseComparison(body) { return (body?.results?.[0]?.series || []).map(series => { const row = series.values?.[0] || [], out = {}; (series.columns || []).forEach((key, i) => { out[key] = row[i]; }); return { carrier: series.tags?.carrier_name || "Unknown", session: series.tags?.session_id || "unknown_session", rsrp: num(out.rsrp), rsrq: num(out.rsrq), download: num(out.download), httpSuccess: num(out.httpSuccess), samples: num(out.samples) }; }).filter(row => row.carrier !== "Unknown" || row.session !== "unknown_session"); }
+      async function loadProbeOptions(force = false) { if (!force && Date.now() - state.lastProbeLoad < 30000) return; const body = await queryInflux1("SHOW TAG VALUES WITH KEY = \"probe_id\""); const series = body?.results?.[0]?.series || []; const values = series[0]?.values || []; state.probes = values.map(row => row[1] || row[0]).filter(Boolean).sort(); state.lastProbeLoad = Date.now(); if (!state.probes.includes(state.selectedProbe)) state.selectedProbe = state.probes[0] || ""; const select = $("#probe-select"); select.innerHTML = state.probes.length ? state.probes.map(id => `<option value="${id.replace(/"/g, "&quot;")}">${id}</option>`).join("") : "<option value=\"\">No live probes found</option>"; select.value = state.selectedProbe; }
+      async function fetchLive() { await loadProbeOptions(); if (!state.selectedProbe) throw new Error("No probe telemetry has been received. Power the ESP32 and verify MQTT/InfluxDB."); const filter = state.selectedProbe ? ` AND probe_id =~ /${influxRegex(state.selectedProbe)}/` : ""; const latest = await queryInflux1(`SELECT * FROM network_telemetry WHERE time > now()-${rangeMinutes()}m${filter} GROUP BY * ORDER BY time DESC LIMIT 1`); const latestData = parseLatest(latest); if (!latestData) throw new Error("No telemetry in selected window for this probe"); state.selectedLayer = latestData.layer || "wifi"; const sessionFilter = latestData.session_id && !["unknown_session", ""].includes(latestData.session_id) ? ` AND session_id =~ /${influxRegex(latestData.session_id)}/` : ""; const historyFields = state.selectedLayer === "phone" ? "mean(rsrp_dbm) AS phoneRsrp,count(timestamp) AS phoneSamples" : state.selectedLayer === "wan" ? "mean(inet_rtt_mean_ms) AS internet,mean(inet_loss_pct) AS internetLoss,mean(dns_latency_ms) AS dns,mean(http_ttfb_ms) AS http,mean(wan_http_success_pct) AS httpSuccess,mean(wan_tput_dl_mbps) AS download" : "mean(rssi_raw_dbm) AS wifiRssi,mean(gw_rtt_mean_ms) AS gateway,mean(pi_rtt_mean_ms) AS piRtt,mean(gw_loss_pct) AS wifiGwLoss,mean(pi_loss_pct) AS wifiPiLoss"; const history = await queryInflux1(`SELECT ${historyFields} FROM network_telemetry WHERE time > now()-${rangeMinutes()}m${filter}${sessionFilter} GROUP BY time(10s) fill(none) ORDER BY time DESC LIMIT ${rangeCount()}`); const historyData = parseHistory(history).reverse(); if (!historyData.length) throw new Error("No telemetry in selected window for this probe"); const wan = state.selectedLayer === "wan" ? latestData : await queryInflux1(`SELECT * FROM network_telemetry WHERE time > now()-${rangeMinutes()}m AND layer =~ /wan/ GROUP BY * ORDER BY time DESC LIMIT 1`).then(parseLatest); latestData.wan = wan; const latestLayer = async (layer) => { try { return await queryInflux1(`SELECT * FROM network_telemetry WHERE time > now()-${rangeMinutes()}m AND layer =~ /${layer}/ GROUP BY * ORDER BY time DESC LIMIT 1`).then(parseLatest); } catch (_) { return null; } }; latestData.wifi = state.selectedLayer === "wifi" ? latestData : await latestLayer("wifi"); latestData.phoneTelemetry = state.selectedLayer === "phone" ? latestData : await latestLayer("phone"); if (["phone", "wifi", "wan"].includes(state.selectedLayer)) { const phoneCompare = await queryInflux1("SELECT mean(rsrp_dbm) AS rsrp,mean(rsrq_db) AS rsrq,count(rsrp_dbm) AS samples FROM network_telemetry WHERE time > now()-7d AND layer =~ /phone/ GROUP BY carrier_name,session_id"); const wanCompare = await queryInflux1("SELECT mean(wan_tput_dl_mbps) AS download,mean(wan_http_success_pct) AS httpSuccess FROM network_telemetry WHERE time > now()-7d AND layer =~ /wan/ GROUP BY carrier_name,session_id"); const merged = new Map(); [...parseComparison(phoneCompare), ...parseComparison(wanCompare)].forEach(row => { const key = `${row.carrier}|${row.session}`; merged.set(key, { ...(merged.get(key) || {}), ...row }); }); latestData.carrierComparison = [...merged.values()]; } return { latest: latestData, history: historyData }; }
+      async function refresh() { if (state.paused) return; try { const data = await fetchLive(); state.error = ""; state.stale = false; state.latest = data.latest; state.history = data.history; setSource("live"); render(); } catch (error) { state.error = error.message || "The live telemetry request failed"; const canKeepLastReading = state.latest && state.latest.probe_id === state.selectedProbe; if (canKeepLastReading) { state.stale = true; render(); } else { state.stale = false; state.latest = null; state.history = []; setSource("error"); render(); } } finally { $("#loading").classList.add("done"); } }
+
+      function updateLayerLabels(d) { const wan = d.layer === "wan", phone = d.layer === "phone"; $("#kpi-primary-label").textContent = wan ? "Internet RTT" : phone ? "Phone RSRP" : "Wi-Fi signal"; $("#kpi-primary-unit").textContent = wan ? "ms" : "dBm"; $("#chart-legend-primary").textContent = wan ? "Internet RTT" : phone ? "Phone RSRP" : "RSSI calibrated"; $("#chart-label-top").textContent = wan ? "0 ms · fast" : phone ? "-50 dBm · excellent" : "-70 dBm · strong"; $("#chart-label-good").textContent = wan ? "100 ms · healthy" : phone ? "-75 dBm · healthy" : "-90 dBm · healthy"; $("#chart-label-warn").textContent = wan ? "200 ms · warning" : phone ? "-100 dBm · warning" : "-105 dBm · warning"; $("#chart-label-bottom").textContent = wan ? "300 ms · critical" : "-120 dBm · critical"; $("#chart-subtitle").textContent = wan ? "Internet RTT and loss over the selected window" : phone ? "Cellular signal over the selected window" : "RSSI and latency over the selected window"; if (wan || phone) { $("#kpi-rssi-label").textContent = phone ? (d.rssi < -105 ? "Weak cellular signal" : "Registered cellular signal") : `${fmt(d.loss, 1)}% packet loss`; $("#kpi-rssi-trend").textContent = phone ? (d.rssi < -105 ? "attention" : "stable") : d.loss > 5 ? "attention" : "stable"; if (wan) $("#signal-bars").innerHTML = ""; } }
+      function renderChart(history) { const line = $("#signal-line"), area = $("#signal-area"), dot = $("#signal-dot"), isPhone = state.selectedLayer === "phone"; const plotted = (history || []).filter(sample => Number.isFinite(sample.rssi)); if (!plotted.length) { line.setAttribute("d", ""); area.setAttribute("d", ""); dot.setAttribute("cx", "0"); dot.setAttribute("cy", "0"); $("#chart-updated").textContent = isPhone ? "Phone connected; signal value unavailable" : "No live sample"; return; } const width = 1000, height = 320, min = state.selectedLayer === "wan" ? 0 : isPhone ? -120 : -90, max = state.selectedLayer === "wan" ? 300 : isPhone ? -50 : -25; const chartData = isPhone ? plotted.map((sample, index) => { const recent = plotted.slice(Math.max(0, index - 2), index + 1).map(item => item.rssi).filter(Number.isFinite); return { ...sample, rssi: recent.length ? recent.reduce((sum, value) => sum + value, 0) / recent.length : sample.rssi }; }) : plotted; const pts = chartData.map((d, i) => [i / Math.max(1, chartData.length - 1) * width, height - ((clamp(d.rssi, min, max) - min) / (max - min)) * (height - 26) - 13]); let path = `M ${pts[0][0].toFixed(1)} ${pts[0][1].toFixed(1)}`; for (let i = 1; i < pts.length; i++) { const [px, py] = pts[i - 1], [x, y] = pts[i], cx = (px + x) / 2; path += ` C ${cx.toFixed(1)} ${py.toFixed(1)}, ${cx.toFixed(1)} ${y.toFixed(1)}, ${x.toFixed(1)} ${y.toFixed(1)}`; } line.setAttribute("d", path); area.setAttribute("d", `${path} L ${width} ${height} L 0 ${height} Z`); const last = pts[pts.length - 1]; dot.setAttribute("cx", last[0]); dot.setAttribute("cy", last[1]); $("#chart-updated").textContent = `${state.stale ? "Last sample" : "Updated"} ${timeLabel(state.latest?.t || Date.now())}`; }
+      function renderSparkCards(d) { const set = (id, val) => { const el = $(id); if (el) el.textContent = val; }; if (state.source === "error") { ["#kpi-rssi", "#kpi-gw", "#kpi-pi", "#kpi-loss", "#kpi-gw-loss", "#kpi-pi-loss"].forEach(id => set(id, "—")); set("#kpi-rssi-label", "Live sample required"); set("#kpi-rssi-trend", "unavailable"); set("#kpi-fault", "NO LIVE DATA"); $("#kpi-fault").style.color = "var(--red)"; return; } set("#kpi-rssi", fmt(d.rssi, 0)); set("#kpi-gw", fmt(d.gw, 1)); set("#kpi-pi", fmt(d.pi, 1)); set("#kpi-loss", fmt(d.loss, 1)); set("#kpi-rssi-label", d.rssi >= -50 ? "Excellent signal" : d.rssi >= -65 ? "Healthy margin" : d.rssi >= -75 ? "Watch coverage" : "Critical signal"); set("#kpi-rssi-trend", d.rssi >= -65 ? "stable" : "attention"); set("#kpi-gw-loss", `${fmt(d.gwLoss, 0)}% loss`); set("#kpi-pi-loss", `${fmt(d.piLoss, 0)}% loss`); const fault = classification(d); set("#kpi-fault", userFaultLabel(fault).toUpperCase()); $("#kpi-fault").style.color = fault === "normal" ? "var(--green)" : "var(--amber)"; const bars = $("#signal-bars"); if (bars) bars.innerHTML = Array.from({ length: 5 }, (_, i) => `<i class="${Number.isFinite(d.rssi) && d.rssi < -75 && i > 1 ? "bad" : Number.isFinite(d.rssi) && d.rssi < -65 && i > 2 ? "warn" : ""}" style="height:${8 + i * 4}px"></i>`).join(""); const matrix = $("#burst-matrix"); if (matrix) matrix.innerHTML = Array.from({ length: 25 }, (_, i) => `<i class="${d.loss > 20 && i % 3 === 0 ? "bad" : d.loss > 3 && i % 5 === 0 ? "warn" : ""}" style="animation-delay:${i * 16}ms"></i>`).join(""); }
+      function renderDiagnostic(d) { if (state.source === "error") { $("#score").textContent = "—"; $("#diagnostic-note").textContent = `Live telemetry unavailable: ${state.error}. No diagnosis is generated until the live source is restored.`; $("#fault-status").textContent = "NO LIVE DATA"; $("#fault-status").className = "status bad"; $("#fault-explanation").textContent = $("#diagnostic-note").textContent; $("#fault-evidence").innerHTML = `<div class="step"><div class="step-icon">!</div><div class="step-copy"><strong>LIVE SOURCE</strong><span>Check the recovery steps in Fault analysis: verify Wi-Fi, MQTT, InfluxDB, then refresh this page.</span></div><b class="step-state">ERROR</b></div>`; return; } const fault = classification(d), healthy = fault === "normal", score = healthy ? 98 : fault === "interference" ? 74 : fault === "coverage_weak" ? 68 : 54, wan = d.wan; $("#score").textContent = `${score}%`; const identityText = ` Survey ${d.site_id || "unassigned_site"} · session ${d.session_id || "unknown_session"} · location ${d.location_id || d.room_id || "unknown"}.`; const wanText = wan ? ` WAN probe: RTT ${fmt(wan.gw)} ms, loss ${fmt(wan.loss, 1)}%, DNS ${fmt(wan.dns)} ms, HTTP ${fmt(wan.http)} ms.` : " WAN probe has no sample in this window."; $("#diagnostic-note").textContent = healthy ? `${identityText} Live evidence is nominal: RSSI ${fmt(d.rssi, 0)} dBm, gateway RTT ${fmt(d.gw)} ms, Pi RTT ${fmt(d.pi)} ms, local loss ${fmt(d.loss, 1)}%.${wanText}` : `${identityText} Likely ${fault.replace(/_/g, " ")}. Live evidence: RSSI ${fmt(d.rssi, 0)} dBm, gateway RTT ${fmt(d.gw)} ms, local loss ${fmt(d.loss, 1)}%.${wanText}`; $("#cycle-label").textContent = `CYCLE ${String(state.cycle).padStart(3, "0")}`; const updates = { rf: `RSSI ${fmt(d.rssi, 0)} dBm · ${Number.isFinite(d.ap) ? d.ap : "–"} co-channel APs`, lan: `Gateway ${fmt(d.gw)} ms · ${fmt(d.gwLoss, 0)}% loss`, wan: wan ? `Internet RTT ${fmt(wan.gw)} ms · ${fmt(wan.loss, 0)}% loss` : "No WAN sample in window", health: `Heap ${d.heap ? Math.round(d.heap / 1024) + " KB" : "not reported"} · ${d.uptime ? Math.round(d.uptime / 60) + " min uptime" : "not reported"}` }; Object.entries(updates).forEach(([key, value]) => { const el = $(`#step-${key}`); if (el) el.textContent = value; }); $("#fault-status").textContent = fault.toUpperCase(); $("#fault-status").className = `status ${healthy ? "" : fault === "wan_down" ? "bad" : "warn"}`; $("#fault-explanation").textContent = $("#diagnostic-note").textContent; $("#fault-evidence").innerHTML = Object.entries(updates).map(([key, value]) => `<div class="step ${healthy ? "ok" : ""}"><div class="step-icon">${key === "rf" ? "⌁" : key === "lan" ? "↝" : key === "wan" ? "◎" : "▣"}</div><div class="step-copy"><strong>${key.toUpperCase()} evidence</strong><span>${value}</span></div><b class="step-state">${healthy ? "PASS" : key === "wan" ? "WARN" : "OBSERVE"}</b></div>`).join(""); }
+      function updateDiagnosticLayer(d) { if (state.source !== "live" || d.layer !== "wan") return; const identity = `Survey ${d.site_id || "unassigned_site"} · session ${d.session_id || "unknown_session"} · location ${d.location_id || d.room_id || "unknown"}.`; const note = `${identity} Live WAN evidence: Internet RTT ${fmt(d.rssi, 1)} ms, gateway RTT ${fmt(d.gw, 1)} ms, loss ${fmt(d.loss, 1)}%.`; $("#diagnostic-note").textContent = note; $("#fault-explanation").textContent = note; $("#step-rf").textContent = "Not reported by WAN probe"; $("#step-lan").textContent = `Gateway ${fmt(d.gw, 1)} ms · ${fmt(d.gwLoss, 0)}% loss`; $("#step-wan").textContent = `Internet RTT ${fmt(d.rssi, 1)} ms · ${fmt(d.loss, 0)}% loss`; $("#step-health").textContent = `DNS ${fmt(d.dns, 1)} ms · HTTP ${fmt(d.http, 1)} ms`; }
+      function renderSpectrum(d) { if (d.layer === "wan") { ["#spectrum-channel", "#spectrum-total", "#spectrum-on-channel", "#spectrum-current", "#dock-bssid", "#dock-freq", "#dock-heap", "#dock-pi-stats", "#dock-readout"].forEach(id => { const el = $(id); if (el) el.textContent = "Not reported by WAN probe"; }); $("#spectrum-status").textContent = "WAN PROBE"; $("#spectrum-status").className = "status"; $("#spectrum-table").innerHTML = `<tr><td colspan="5" style="color:var(--muted)">The selected Pi WAN probe has no Wi-Fi radio fields. Select an ESP32 probe for RF/channel evidence.</td></tr>`; return; } if (state.source === "error") { ["#spectrum-channel", "#spectrum-total", "#spectrum-on-channel", "#spectrum-current", "#dock-bssid", "#dock-freq", "#dock-heap", "#dock-pi-stats", "#dock-readout"].forEach(id => { const el = $(id); if (el) el.textContent = "No live sample"; }); $("#spectrum-status").textContent = "NO LIVE DATA"; $("#spectrum-status").className = "status bad"; $("#spectrum-table").innerHTML = `<tr><td colspan="5" style="color:var(--muted)">Radio details are unavailable until the live ESP32 connection is restored.</td></tr>`; return; } const channel = Number(d.channel) || 6, center = 120 + ((channel % 11) / 10) * 560, neighbor = clamp(center + 150, 90, 710), total = Number.isFinite(d.apTotal) ? d.apTotal : 0, onChannel = Number.isFinite(d.ap) ? d.ap : 0; const main = `M ${center - 150} 166 Q ${center} 18 ${center + 150} 166 Z`, side = `M ${neighbor - 95} 166 Q ${neighbor} 66 ${neighbor + 95} 166 Z`; $("#spectrum-main").setAttribute("d", main); $("#spectrum-neighbor").setAttribute("d", side); $("#spectrum-channel").textContent = `Channel ${channel} · ${channel > 14 ? "80 MHz" : "20 MHz"}`; $("#spectrum-total").textContent = total || "–"; $("#spectrum-on-channel").textContent = Number.isFinite(d.ap) ? onChannel : "–"; $("#spectrum-current").textContent = `${fmt(d.rssi, 0)} dBm`; $("#spectrum-status").textContent = Number.isFinite(d.ap) ? (onChannel > 3 ? "CONTENDED" : "CLEAN") : "NOT REPORTED"; $("#spectrum-status").className = `status ${onChannel > 3 ? "warn" : ""}`; const bssid = d.bssid || "not reported"; $("#spectrum-table").innerHTML = `<tr><td><strong>Active target</strong></td><td>${bssid}</td><td>Ch ${channel}</td><td>${fmt(d.rssi, 0)} dBm</td><td><span class="status">${Number.isFinite(d.ap) ? (onChannel > 3 ? "High" : "Clean") : "Reported aggregate only"}</span></td></tr><tr><td colspan="5" style="color:var(--muted)">The firmware reports aggregate AP counts; individual neighboring AP rows are not fabricated.</td></tr>`; $("#dock-bssid").textContent = bssid; $("#dock-freq").textContent = `Channel ${channel} · ${channel > 14 ? "5 GHz" : "2.4 GHz"}`; $("#dock-heap").textContent = d.heap ? `${Math.round(d.heap / 1024)} KB / 320 KB` : "–"; $("#dock-pi-stats").textContent = d.uptime ? `Uptime ${Math.round(d.uptime / 60)}m · collector reported` : "not reported"; $("#dock-readout").textContent = `${fmt(d.rssi, 0)} dBm signal · ${fmt(d.gw, 1)} ms local RTT · ${fmt(d.loss, 1)}% loss.`; }
+      function renderSpectrumV2(d) {
+        const fields = ["#spectrum-channel", "#spectrum-total", "#spectrum-on-channel", "#spectrum-current", "#dock-bssid", "#dock-freq", "#dock-heap", "#dock-pi-stats", "#dock-readout"];
+        const clear = (status, message, row) => {
+          fields.forEach(id => { const el = $(id); if (el) el.textContent = message; });
+          $("#spectrum-main").setAttribute("d", "");
+          $("#spectrum-neighbor").setAttribute("d", "");
+          $("#spectrum-status").textContent = status;
+          $("#spectrum-status").className = `status ${status === "NO LIVE DATA" ? "bad" : ""}`;
+          $("#spectrum-table").innerHTML = `<tr><td colspan="5" style="color:var(--muted)">${row}</td></tr>`;
+        };
+        if (d.layer === "wan") {
+          clear("WAN PROBE", "Not reported by WAN probe", "The selected Pi WAN probe has no Wi-Fi radio fields. Select an ESP32 probe for RF/channel evidence.");
+          return;
+        }
+        if (d.layer === "phone") {
+          clear("PHONE DATA", "Not reported by phone telemetry", "The phone agent reports cellular data, not Wi-Fi spectrum. Select an ESP32 probe for RF/channel evidence.");
+          return;
+        }
+        if (state.source === "error") {
+          clear("NO LIVE DATA", "No live sample", "Radio details are unavailable until the live ESP32 connection is restored.");
+          return;
+        }
+        const channel = Number(d.channel) || 6;
+        const center = 120 + ((channel % 11) / 10) * 560;
+        const neighbor = clamp(center + 150, 90, 710);
+        const total = Number.isFinite(d.apTotal) ? d.apTotal : 0;
+        const onChannel = Number.isFinite(d.ap) ? d.ap : 0;
+        $("#spectrum-main").setAttribute("d", `M ${center - 150} 166 Q ${center} 18 ${center + 150} 166 Z`);
+        $("#spectrum-neighbor").setAttribute("d", `M ${neighbor - 95} 166 Q ${neighbor} 66 ${neighbor + 95} 166 Z`);
+        $("#spectrum-channel").textContent = `Channel ${channel} · ${channel > 14 ? "80 MHz" : "20 MHz"}`;
+        $("#spectrum-total").textContent = total || "–";
+        $("#spectrum-on-channel").textContent = Number.isFinite(d.ap) ? onChannel : "–";
+        $("#spectrum-current").textContent = `${fmt(d.rssi, 0)} dBm`;
+        $("#spectrum-status").textContent = Number.isFinite(d.ap) ? (onChannel > 3 ? "CONTENDED" : "CLEAN") : "NOT REPORTED";
+        $("#spectrum-status").className = `status ${onChannel > 3 ? "warn" : ""}`;
+        const bssid = d.bssid || "not reported";
+        $("#spectrum-table").innerHTML = `<tr><td><strong>Active target</strong></td><td>${bssid}</td><td>Ch ${channel}</td><td>${fmt(d.rssi, 0)} dBm</td><td><span class="status">${Number.isFinite(d.ap) ? (onChannel > 3 ? "High" : "Clean") : "Reported aggregate only"}</span></td></tr><tr><td colspan="5" style="color:var(--muted)">The firmware reports aggregate AP counts; individual neighboring AP rows are not fabricated.</td></tr>`;
+        $("#dock-bssid").textContent = bssid;
+        $("#dock-freq").textContent = `Channel ${channel} · ${channel > 14 ? "5 GHz" : "2.4 GHz"}`;
+        $("#dock-heap").textContent = d.heap ? `${Math.round(d.heap / 1024)} KB / 320 KB` : "–";
+        $("#dock-pi-stats").textContent = d.uptime ? `Uptime ${Math.round(d.uptime / 60)}m · collector reported` : "not reported";
+        $("#dock-readout").textContent = `${fmt(d.rssi, 0)} dBm signal · ${fmt(d.gw, 1)} ms local RTT · ${fmt(d.loss, 1)}% loss.`;
+      }
+      renderSpectrum = renderSpectrumV2;
+
+      function escapeHtml(value) { return String(value ?? "").replace(/[&<>"']/g, character => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[character])); }
+      function renderSearchResults() { const box = $("#search-results"), query = String(state.search || "").trim().toLowerCase(); if (!box) return; if (!query) { box.classList.remove("open"); box.innerHTML = ""; return; } const d = state.latest || {}, network = (d.wan || d).network || {}, currentRoom = d.location_id || d.room_id || "location not reported", currentFault = userFaultLabel(classification(d)), results = state.probes.map(id => { const current = id === state.selectedProbe, type = id.startsWith("pi") ? "WAN probe" : id === "phone_1" ? "Phone telemetry" : "Wi‑Fi probe", room = current ? currentRoom : "Select to load live telemetry", extra = current ? [d.bssid, network.ssid, network.isp, d.session_id, currentFault].filter(Boolean).join(" · ") : "", haystack = `${id} ${type} ${room} ${extra}`.toLowerCase(); return { id, type, room, extra, haystack }; }).filter(item => item.haystack.includes(query)).slice(0, 8); box.classList.add("open"); box.innerHTML = results.length ? results.map(item => `<button class="search-result" data-probe="${escapeHtml(item.id)}" role="option"><span class="search-result-icon">${item.id.startsWith("pi") ? "▣" : item.id === "phone_1" ? "◉" : "⌁"}</span><span class="search-result-copy"><strong>${escapeHtml(item.id)}</strong><span>${escapeHtml(item.room)} · ${escapeHtml(item.type)}${item.extra ? ` · ${escapeHtml(item.extra)}` : ""}</span></span></button>`).join("") : `<div class="search-empty">No live match for <strong>${escapeHtml(query)}</strong>.<br>Try a probe ID, room, BSSID, carrier, ISP, session, or fault name.</div>`; }
+      function renderProbes() { const d = state.latest || {}, selectedLocation = d.location_id || d.room_id || "location not reported", probes = state.probes.map(id => ({ id, room: id === state.selectedProbe && state.source === "live" ? selectedLocation : id === state.selectedProbe ? "no live sample" : "select to query", rssi: id === state.selectedProbe && state.source === "live" ? d.rssi : null, type: id.startsWith("pi") ? "WAN probe" : id === "phone_1" ? "Phone telemetry" : "Wi-Fi probe" })); const visible = probes.filter(p => !state.search || `${p.id} ${p.room} ${p.type}`.toLowerCase().includes(state.search)); const html = visible.map(p => `<button class="probe ${p.id === state.selectedProbe ? "selected" : ""}" data-probe="${p.id}"><span class="probe-icon">${p.id.startsWith("pi") ? "▣" : p.id === "phone_1" ? "◉" : "⌁"}</span><span class="probe-copy"><strong>${p.id}</strong><span>${p.room} · ${p.type}</span></span><span class="probe-value">${p.rssi === null ? (p.id === state.selectedProbe ? "no live sample" : "not selected") : p.id.startsWith("pi") ? fmt(p.rssi, 1) + " ms" : fmt(p.rssi, 0) + " dBm"}<small>${p.id === state.selectedProbe && state.source === "live" ? "● live sample" : "○ select to query"}</small></span></button>`).join(""); $("#probe-list").innerHTML = html || `<div class="empty">No live probes have been discovered yet.</div>`; $("#probe-screen-list").innerHTML = html || `<div class="empty">No live probes have been discovered yet.</div>`; $("#node-count").textContent = `${probes.length} discovered`; $("#probe-screen-count").textContent = `${probes.length} discovered`; }
+      function renderEvents() { const d = state.latest || {}, fault = classification(d), events = [{ title: state.source === "error" ? "Live telemetry unavailable" : fault === "normal" ? "Baseline is healthy" : `${fault.replace(/_/g, " ")} detected`, detail: state.source === "error" ? state.error : `Selected node ${state.selectedProbe} · ${timeLabel(d.t || Date.now())}`, warn: state.source !== "live" || fault !== "normal" }, { title: "Telemetry window refreshed", detail: `${state.history.length} samples in ${state.range} window`, warn: false }, { title: "Collector connection", detail: state.source === "live" ? `InfluxDB live query through dashboard proxy` : "Live query unavailable; follow the recovery steps", warn: state.source !== "live" }]; $("#event-list").innerHTML = events.map(e => `<div class="event"><i class="event-mark ${e.warn ? "warn" : ""}"></i><div class="event-copy"><strong>${e.title}</strong><span>${e.detail}</span></div></div>`).join(""); }
+      function renderHistory() { const query = state.search; const rows = [...state.history].reverse().filter(d => !query || `${d.probe_id} ${d.fault_class} ${d.rssi}`.toLowerCase().includes(query)); $("#history-count").textContent = `${rows.length} samples`; $("#history-subtitle").textContent = `${state.selectedProbe} · ${state.range} window · ${state.source === "live" ? "live data" : "no live data"}`; $("#history-empty").classList.toggle("hidden", rows.length > 0); $("#history-table").innerHTML = rows.slice(0, 80).map(d => { const fault = classification(d); return `<tr><td>${timeLabel(d.t)}</td><td>${d.probe_id || state.selectedProbe}</td><td>${fmt(d.rssi, 0)} dBm</td><td>${fmt(d.gw)} ms</td><td>${fmt(d.pi)} ms</td><td>${fmt(d.loss)}%</td><td><span class="status ${fault === "normal" ? "" : fault === "wan_down" ? "bad" : "warn"}">${fault.replace(/_/g, " ")}</span></td></tr>`; }).join(""); }
+      function renderFinalConclusion(d) {
+        const card = $("#final-conclusion"), status = $("#final-conclusion-status"), main = $("#final-conclusion-main"), copy = $("#final-conclusion-copy"), action = $("#final-conclusion-action");
+        if (!card || !status || !main || !copy || !action) return;
+        const setCheck = (id, kind, detail) => { const el = $(id); if (!el) return; el.className = `conclusion-check ${kind}`; const span = el.querySelector("span"); if (span) span.textContent = detail; };
+        if (state.source !== "live" || !d) {
+          card.className = "final-conclusion warn"; status.textContent = "NO DATA"; status.className = "status bad"; main.textContent = "Wait for fresh measurements before making a decision."; copy.textContent = "A safe conclusion needs current readings from the phone or ESP32, the local router path, and the outside Internet."; ["#conclusion-signal", "#conclusion-local", "#conclusion-internet", "#conclusion-data"].forEach(id => setCheck(id, "missing", "Waiting")); action.innerHTML = "<strong>Recommended next step:</strong> restore the live collector connection and collect at least two minutes of data."; return;
+        }
+        const wan = d.wan || (d.layer === "wan" ? d : null), wifi = d.wifi || (d.layer === "wifi" ? d : null), phoneSample = d.phoneTelemetry || (d.layer === "phone" ? d : null), phone = phoneSample?.phone || {};
+        const sampleCount = state.history?.length || 0, age = d.t ? Math.max(0, Math.round((Date.now() - d.t) / 1000)) : Infinity;
+        const severity = { missing: -1, good: 0, warn: 1, bad: 2 };
+        const worst = (...values) => values.reduce((current, value) => severity[value] > severity[current] ? value : current, "good");
+        let signalKind = "missing", signalDetail = "No phone or Wi‑Fi signal sample";
+        if (Number.isFinite(phone.rsrp)) { signalKind = phone.rsrp >= -90 ? "good" : phone.rsrp >= -100 ? "warn" : "bad"; if (Number.isFinite(phone.rsrq) && phone.rsrq < -15) signalKind = worst(signalKind, "warn"); signalDetail = `Phone ${fmt(phone.rsrp, 0)} dBm${Number.isFinite(phone.rsrq) ? ` · quality ${fmt(phone.rsrq, 0)} dB` : ""}`; }
+        else if (d.layer === "phone") { signalDetail = "Phone is connected, but Android did not provide the cellular signal value"; }
+        else if (Number.isFinite(wifi?.rssi)) { signalKind = wifi.rssi >= -65 ? "good" : wifi.rssi >= -75 ? "warn" : "bad"; signalDetail = `Wi‑Fi ${fmt(wifi.rssi, 0)} dBm`; }
+        const localRtt = Number.isFinite(wifi?.gw) ? wifi.gw : wan?.gw, localLoss = Number.isFinite(wifi?.gwLoss) ? wifi.gwLoss : wan?.gwLoss;
+        let localKind = "missing", localDetail = "Local router path not reported";
+        if (Number.isFinite(localRtt) || Number.isFinite(localLoss)) { localKind = (Number.isFinite(localRtt) && localRtt > 100) || (Number.isFinite(localLoss) && localLoss > 5) ? "bad" : (Number.isFinite(localRtt) && localRtt > 50) || (Number.isFinite(localLoss) && localLoss > 1) ? "warn" : "good"; localDetail = `Router ${fmt(localRtt, 0)} ms · ${fmt(localLoss, 1)}% loss`; }
+        let internetKind = "missing", internetDetail = "Outside Internet test not reported", internetParts = [];
+        if (Number.isFinite(wan?.httpSuccess)) { internetKind = wan.httpSuccess >= 95 ? "good" : wan.httpSuccess >= 80 ? "warn" : "bad"; internetParts.push(`web checks ${fmt(wan.httpSuccess, 0)}%`); }
+        if (Number.isFinite(wan?.download) && wan.download >= 0) { const speedKind = wan.download >= 25 ? "good" : wan.download >= 5 ? "warn" : wan.download >= 1 ? "warn" : "bad"; internetKind = internetKind === "missing" ? speedKind : worst(internetKind, speedKind); internetParts.push(`download ${fmt(wan.download, 1)} Mbps`); }
+        if (Number.isFinite(wan?.http)) { const responseKind = wan.http > 800 ? "bad" : wan.http > 500 ? "warn" : "good"; internetKind = internetKind === "missing" ? responseKind : worst(internetKind, responseKind); internetParts.push(`response ${fmt(wan.http, 0)} ms`); }
+        if (internetParts.length) { internetDetail = internetParts.join(" · "); if (Number.isFinite(wan?.loss) && wan.loss >= 80 && Number.isFinite(wan?.httpSuccess) && wan.httpSuccess >= 80) internetDetail += " · public ping may be blocked, but websites respond"; }
+        const dataKind = age <= 45 && sampleCount >= 5 ? "good" : age <= 90 && sampleCount >= 2 ? "warn" : "bad", dataDetail = `${sampleCount} samples · latest ${Number.isFinite(age) ? age + "s ago" : "unknown"}`;
+        const comparison = d.carrierComparison || [], carrierStats = {};
+        comparison.forEach(row => { const name = String(row.carrier || "").toUpperCase(); if (!carrierStats[name]) carrierStats[name] = []; if (Number.isFinite(row.download)) carrierStats[name].push(row.download); });
+        const carrierNames = Object.keys(carrierStats).filter(name => carrierStats[name].length), averages = Object.fromEntries(carrierNames.map(name => [name, carrierStats[name].reduce((a, b) => a + b, 0) / carrierStats[name].length]));
+        let carrierNote = "Run one Jio session and one BSNL session at the same place and time to compare carriers.";
+        if (averages.JIO !== undefined && averages.BSNL !== undefined) { if (averages.JIO < 5 && averages.BSNL < 5) carrierNote = `Jio (${fmt(averages.JIO, 1)} Mbps) and BSNL (${fmt(averages.BSNL, 1)} Mbps) are both slow in these sessions; this points to local conditions, shared congestion, device limits, or test-time congestion—not one provider alone.`; else { const better = averages.JIO >= averages.BSNL ? "Jio" : "BSNL", faster = Math.max(averages.JIO, averages.BSNL), slower = Math.min(averages.JIO, averages.BSNL); carrierNote = `${better} is faster in these sessions (${fmt(faster, 1)} vs ${fmt(slower, 1)} Mbps). The slower result may be carrier-specific, but repeat at another time before deciding.`; } }
+        const internetDown = Number.isFinite(wan?.httpSuccess) ? wan.httpSuccess < 34 : false;
+        let kind = "good", heading = "The connection looks healthy", explanation = "The available signal, local router path, and outside Internet checks are within a usable range. No single fault is proven.";
+        if (signalKind === "missing" || localKind === "missing" || internetKind === "missing" || dataKind === "bad") { kind = "warn"; heading = "The conclusion is not ready yet"; explanation = "Some layers or too few fresh samples are missing. Keep the test running so Trinetra does not blame the wrong device or provider."; }
+        else if (internetDown && localKind === "good") { kind = "bad"; heading = "The local router works, but the outside Internet is down"; explanation = "The phone/Pi can reach the local gateway, but most web checks failed. Check the active mobile-data/ISP path before replacing the router."; }
+        else if (internetKind !== "good" && signalKind === "bad") { kind = "warn"; heading = "The Internet is slow where this test is being performed"; explanation = "The phone signal is weak and the outside Internet is also slow. First test near a window or outside; if the speed improves, this location or building is blocking the mobile signal."; }
+        else if (internetKind !== "good" && localKind === "good" && signalKind !== "bad") { kind = "warn"; heading = "The local network is fine, but the outside Internet is slow"; explanation = "The router path responds normally while web response or download speed is poor. This is more consistent with carrier congestion, ISP backhaul, or a temporary busy period."; }
+        else if (localKind === "bad" && internetKind === "good") { kind = "warn"; heading = "The main problem is inside the local Wi‑Fi or hotspot path"; explanation = "The outside Internet is reachable, but the device is having trouble reaching the local router. Move the sensor/phone, reduce nearby interference, or check the hotspot."; }
+        else if (signalKind === "bad" || localKind === "bad") { kind = "warn"; heading = "The local signal path needs attention"; explanation = "At least one local radio or router measurement is outside the healthy range. Change position and repeat before changing the ISP."; }
+        card.className = `final-conclusion ${kind}`; status.textContent = kind === "good" ? "GOOD" : kind === "bad" ? "CRITICAL" : "REVIEW"; status.className = `status ${kind === "bad" ? "bad" : kind === "warn" ? "warn" : ""}`; main.textContent = heading; copy.textContent = `${explanation} Carrier comparison: ${carrierNote}`; setCheck("#conclusion-signal", signalKind, signalDetail); setCheck("#conclusion-local", localKind, localDetail); setCheck("#conclusion-internet", internetKind, internetDetail); setCheck("#conclusion-data", dataKind, dataDetail);
+        let recommendation = "Continue collecting several minutes of data, then repeat the same test at a second nearby location.";
+        if (signalKind === "bad" && internetKind !== "good") recommendation = "Move the phone/Pi near a window or outdoors and repeat. If the result improves, shift the operating position or use a better-placed 4G/5G router.";
+        else if (internetKind !== "good" && localKind === "good") recommendation = "Do not move the local router first. Repeat at a different time and compare Jio with BSNL; report a carrier issue only if the slowdown persists.";
+        else if (localKind === "bad") recommendation = "Move the phone/ESP32 closer to the hotspot, reduce obstacles, and check for heavy local downloads or Wi‑Fi interference.";
+        action.innerHTML = `<strong>Recommended next step:</strong> ${recommendation}`;
+      }
+      function renderNetworkIdentity(d) { const card = $("#network-identity-card"), status = $("#identity-status"); if (!card) return; const source = d?.wan || d || {}, n = source.network || {}, p = d?.phone || {}; const set = (id, value) => { const el = $(id); if (el) el.textContent = value || "Unavailable"; }; const hasNetwork = Boolean(n.localIp || n.gateway || n.publicIp || n.isp); set("#identity-local-ip", n.localIp); set("#identity-gateway", n.gateway); set("#identity-router", n.routerMac); set("#identity-interface", [n.interface, n.ssid].filter(Boolean).join(" · ")); set("#identity-public-ip", n.publicIp); set("#identity-isp", [n.isp, n.asn].filter(Boolean).join(" · ")); set("#identity-area", [n.city, n.region, n.country, n.timezone].filter(Boolean).join(" · ")); set("#identity-public-location", Number.isFinite(n.publicLatitude) && Number.isFinite(n.publicLongitude) ? `${n.publicLatitude.toFixed(5)}, ${n.publicLongitude.toFixed(5)} (public-IP estimate)` : "Unavailable"); set("#identity-phone-location", Number.isFinite(p.latitude) && Number.isFinite(p.longitude) ? `${p.latitude.toFixed(5)}, ${p.longitude.toFixed(5)} ±${fmt(p.accuracy, 0)} m (phone-reported)` : "Unavailable until phone telemetry reports coordinates."); if (status) { status.textContent = hasNetwork ? "LIVE" : "WAITING"; status.className = `status ${hasNetwork ? "" : "warn"}`; } }
+      function render() { state.cycle++; const d = state.latest || {}; const fault = classification(d); updateLayerLabels(d); renderSparkCards(d); updateLayerLabels(d); renderChart(state.history); renderDiagnostic(d); updateDiagnosticLayer(d); renderNetworkIdentity(d); renderFinalConclusion(d); renderSpectrum(d); renderProbes(); renderSearchResults(); renderEvents(); renderHistory(); $("#chart-subtitle").textContent = `${state.selectedProbe} · ${state.range} · ${state.stale ? "showing last valid sample" : state.source === "live" ? "collector connected" : "live connection required"}`; $("#chart-status").innerHTML = `<i class="dot"></i> ${state.source === "live" ? state.stale ? "LAST SAMPLE" : "LIVE" : "ERROR"}`; const statusText = state.source === "error" ? "LIVE ERROR · NO DATA" : state.stale ? "LAST SAMPLE · RETRYING" : fault === "normal" ? "LIVE · NOMINAL" : `${userFaultLabel(fault).toUpperCase()} · REVIEW`; setStatus(statusText, state.source === "error" ? "bad" : state.stale ? "warn" : fault === "wan_down" ? "bad" : fault === "normal" ? "live" : "warn"); }
+
+      async function runTrace() { if (state.source !== "live") { toast("Cannot run a live trace: restore the connection first."); return; } await refresh(); toast("Live trace refreshed from current telemetry"); }
+      function exportCsv() { if (!state.history.length) return toast("There is no telemetry to export yet"); const header = ["timestamp", "probe_id", "rssi_dbm", "gateway_rtt_ms", "pi_rtt_ms", "loss_pct", "fault_class"]; const lines = [header, ...state.history.map(d => [new Date(d.t).toISOString(), d.probe_id || state.selectedProbe, d.rssi, d.gw, d.pi, d.loss, classification(d)])].map(row => row.map(v => `"${String(v ?? "").replace(/"/g, '""')}"`).join(",")); const blob = new Blob([lines.join("\n")], { type: "text/csv;charset=utf-8" }); const link = document.createElement("a"); link.href = URL.createObjectURL(blob); link.download = `piprobe-${state.selectedProbe}-${Date.now()}.csv`; link.click(); URL.revokeObjectURL(link.href); toast("CSV export downloaded"); }
+      function openSettings() { $("#setting-host").value = state.host; $("#setting-port").value = state.port; $("#setting-db").value = state.db; $("#settings-modal").classList.add("open"); $("#setting-host").focus(); }
+      function closeSettings() { $("#settings-modal").classList.remove("open"); }
+      function openHelp() { $("#help-modal").classList.add("open"); }
+      function closeHelp() { $("#help-modal").classList.remove("open"); }
+      function saveSettings() { state.host = $("#setting-host").value.trim() || defaultHost; state.port = $("#setting-port").value.trim() || "8086"; state.db = $("#setting-db").value.trim() || "piprobe"; ["host", "port", "db"].forEach(k => localStorage.setItem(`piprobe.${k}`, state[k])); closeSettings(); toast("Live connection settings saved — reconnecting"); refresh(); }
+      function navigate(view) { $$('[data-view]').forEach(b => b.classList.toggle("active", b.dataset.view === view)); $$('[data-screen]').forEach(s => s.classList.toggle("active", s.dataset.screen === view)); if (location.hash !== `#${view}`) history.replaceState(null, "", `#${view}`); }
+      function bind() { document.addEventListener("click", e => { const view = e.target.closest("[data-view]"); if (view) return navigate(view.dataset.view); const probe = e.target.closest("[data-probe]"); if (probe) { state.selectedProbe = probe.dataset.probe; localStorage.setItem("piprobe.probe", state.selectedProbe); $("#probe-select").value = state.selectedProbe; $("#search").value = ""; state.search = ""; $("#search-results")?.classList.remove("open"); toast(`Focused ${state.selectedProbe}`); refresh(); return; } const range = e.target.closest("[data-range]"); if (range) { state.range = range.dataset.range; $$('[data-range]').forEach(b => b.classList.toggle("active", b.dataset.range === state.range)); refresh(); return; } const action = e.target.closest("[data-action]")?.dataset.action; if (action === "settings") openSettings(); if (action === "close-settings") closeSettings(); if (action === "save-settings") saveSettings(); if (action === "help") openHelp(); if (action === "close-help") closeHelp(); if (action === "trace") runTrace(); if (action === "export") exportCsv(); if (action === "pause") { state.paused = !state.paused; e.target.textContent = state.paused ? "▶ Resume" : "Ⅱ Pause"; toast(state.paused ? "Live updates paused" : "Live updates resumed"); } if (action === "fullscreen") document.fullscreenElement ? document.exitFullscreen() : document.documentElement.requestFullscreen?.(); if (action === "deploy") toast("Sensor enrollment is ready — connect a new ESP32 and assign its probe ID in firmware."); }); $("#probe-select").addEventListener("change", e => { state.selectedProbe = e.target.value; localStorage.setItem("piprobe.probe", state.selectedProbe); refresh(); }); $("#search").addEventListener("input", e => { state.search = e.target.value.trim().toLowerCase(); renderProbes(); renderHistory(); renderSearchResults(); }); $("#settings-modal").addEventListener("click", e => { if (e.target.id === "settings-modal") closeSettings(); }); $("#help-modal").addEventListener("click", e => { if (e.target.id === "help-modal") closeHelp(); }); document.addEventListener("keydown", e => { if (e.key === "Escape") { closeSettings(); closeHelp(); $("#search-results")?.classList.remove("open"); } if (e.key === "/" && document.activeElement.tagName !== "INPUT") { e.preventDefault(); $("#search").focus(); } }); }
+      function updateClock() { const now = new Date(); const el = $("#telemetry-clock"); if (el) el.textContent = `IST ${now.toLocaleTimeString("en-IN", { hour12: false })}`; }
+      function init() { $("#probe-select").value = state.selectedProbe; bind(); navigate(location.hash.slice(1) || "dashboard"); updateClock(); setInterval(updateClock, 1000); refresh(); setInterval(() => { if (!state.paused) refresh(); }, 5000); setTimeout(() => $("#loading").classList.add("done"), 700); }
+      function renderPhoneOverlay(d) { const card = $("#phone-telemetry-card"); if (!card) return; if (!d || d.layer !== "phone" || state.source !== "live") { card.classList.add("hidden"); return; } card.classList.remove("hidden"); const p = d.phone || {}, age = Math.max(0, Math.round((Date.now() - d.t) / 1000)), fresh = age <= 30; $("#phone-status").textContent = fresh ? `LIVE · ${age}s` : `STALE · ${age}s`; $("#phone-status").className = `status ${fresh ? "" : "bad"}`; $("#phone-carrier").textContent = display(p.carrier); $("#phone-network").textContent = display(p.network); $("#phone-sim").textContent = display(p.sim); $("#phone-location").textContent = Number.isFinite(p.latitude) && Number.isFinite(p.longitude) ? `${p.latitude.toFixed(5)}, ${p.longitude.toFixed(5)} ±${fmt(p.accuracy, 0)}m` : "Unavailable"; $("#phone-cell").textContent = display(p.cellId); $("#phone-radio").textContent = `${fmt(p.rsrp, 0)} / ${fmt(p.rsrq, 0)} / ${fmt(p.sinr, 1)}`; $("#phone-updated").textContent = fresh ? `Received ${timeLabel(d.t)} from the phone. Missing fields are shown as unavailable.` : `No phone update for ${age} seconds. Open Termux and verify permissions and connection.`; $("#kpi-primary-label").textContent = "Phone RSRP"; $("#kpi-primary-unit").textContent = "dBm"; $("#kpi-rssi-label").textContent = d.rssi < -105 ? "Weak cellular signal" : "Registered cellular signal"; $("#chart-legend-primary").textContent = "Phone RSRP"; $("#chart-subtitle").textContent = "Cellular signal over the selected window"; $("#spectrum-status").textContent = "PHONE DATA"; $("#spectrum-status").className = "status"; ["#spectrum-channel", "#spectrum-total", "#spectrum-on-channel", "#spectrum-current", "#dock-bssid", "#dock-freq", "#dock-heap", "#dock-pi-stats", "#dock-readout"].forEach(id => { const el = $(id); if (el) el.textContent = "Not reported by phone telemetry"; }); $("#spectrum-table").innerHTML = `<tr><td colspan="5" style="color:var(--muted)">Wi-Fi spectrum fields are not reported by the phone agent. No radio values are fabricated.</td></tr>`; }
+      function renderPhoneOverlay(d) { const card = $("#phone-telemetry-card"); if (!card) return; if (!d || d.layer !== "phone" || state.source !== "live") { card.classList.add("hidden"); return; } card.classList.remove("hidden"); const p = d.phone || {}, age = Math.max(0, Math.round((Date.now() - d.t) / 1000)), fresh = age <= 30, fault = classification(d); $("#phone-status").textContent = fresh ? `LIVE · ${age}s` : `STALE · ${age}s`; $("#phone-status").className = `status ${fresh ? "" : "bad"}`; $("#phone-carrier").textContent = display(p.carrier); $("#phone-network").textContent = display(p.network); $("#phone-sim").textContent = display(p.sim); $("#phone-location").textContent = Number.isFinite(p.latitude) && Number.isFinite(p.longitude) ? `${p.latitude.toFixed(5)}, ${p.longitude.toFixed(5)} ±${fmt(p.accuracy, 0)}m` : "Unavailable"; $("#phone-cell").textContent = display(p.cellId); $("#phone-radio").textContent = `${fmt(p.rsrp, 0)} / ${fmt(p.rsrq, 0)} / ${fmt(p.sinr, 1)}`; $("#phone-updated").textContent = fresh ? `Received ${timeLabel(d.t)} from the phone. Missing fields are shown as unavailable.` : `No phone update for ${age} seconds. Open Termux and verify permissions and connection.`; $("#kpi-primary-label").textContent = "Phone RSRP"; $("#kpi-primary-unit").textContent = "dBm"; $("#kpi-rssi-label").textContent = d.rssi < -105 ? "Weak cellular signal" : "Registered cellular signal"; $("#chart-legend-primary").textContent = "Phone RSRP"; $("#chart-subtitle").textContent = "Cellular signal over the selected window"; $("#score").textContent = "—"; $("#diagnostic-note").textContent = `Phone telemetry from ${display(p.carrier)} on ${display(p.network)}. Cellular status: ${fault.replace(/_/g, " ")}. Missing radio fields are not inferred.`; $("#fault-explanation").textContent = $("#diagnostic-note").textContent; $("#fault-status").textContent = fault.replace(/_/g, " ").toUpperCase(); $("#fault-status").className = `status ${fault === "normal" ? "" : "warn"}`; $("#step-rf").textContent = `RSRP ${fmt(p.rsrp, 0)} dBm · RSRQ ${fmt(p.rsrq, 0)} dB · SINR ${fmt(p.sinr, 1)} dB`; $("#step-lan").textContent = "Phone-to-Pi MQTT connected"; $("#step-wan").textContent = "WAN performance is reported by the Pi WAN probe"; $("#step-health").textContent = `Cell ${display(p.cellId)} · GPS ${Number.isFinite(p.latitude) ? "available" : "unavailable"}`; const cards = $$(`[data-probe="${d.probe_id}"]`); cards.forEach((node) => { const label = node.querySelector(".probe-copy span"); const icon = node.querySelector(".probe-icon"); if (label) label.textContent = `${d.location_id || "location not reported"} · Phone telemetry`; if (icon) icon.textContent = "◉"; }); $("#spectrum-status").textContent = "PHONE DATA"; $("#spectrum-status").className = "status"; ["#spectrum-channel", "#spectrum-total", "#spectrum-on-channel", "#spectrum-current", "#dock-bssid", "#dock-freq", "#dock-heap", "#dock-pi-stats", "#dock-readout"].forEach(id => { const el = $(id); if (el) el.textContent = "Not reported by phone telemetry"; }); $("#spectrum-table").innerHTML = `<tr><td colspan="5" style="color:var(--muted)">Wi-Fi spectrum fields are not reported by the phone agent. No radio values are fabricated.</td></tr>`; }
+      const phoneOverlayBase = renderPhoneOverlay;
+      renderPhoneOverlay = (d) => { phoneOverlayBase(d); if (!d || d.layer !== "phone" || state.source !== "live") return; const w = d.wan || {}; const wanEvidence = Number.isFinite(w.httpSuccess) || Number.isFinite(w.download) || Number.isFinite(w.http); $("#phone-wan-http").textContent = Number.isFinite(w.httpSuccess) ? `${fmt(w.httpSuccess, 0)}% · ${w.httpSuccessCount || 0}/${w.httpTargetCount || 0} targets` : "Unavailable"; $("#phone-wan-download").textContent = Number.isFinite(w.download) && w.download >= 0 ? `${fmt(w.download, 2)} Mbps` : "Unavailable"; const wanText = wanEvidence ? ` WAN evidence: HTTPS ${fmt(w.httpSuccess, 0)}% success, TTFB ${fmt(w.http, 0)} ms, download ${Number.isFinite(w.download) && w.download >= 0 ? fmt(w.download, 2) + " Mbps" : "unavailable"}.` : " WAN evidence is not available yet."; $("#phone-updated").textContent = `${$("#phone-updated").textContent}${wanText}`; $("#diagnostic-note").textContent = `Phone telemetry from ${display(d.phone?.carrier)} on ${display(d.phone?.network)}. Cellular status: ${classification(d).replace(/_/g, " ")}.${wanText}`; $("#fault-explanation").textContent = $("#diagnostic-note").textContent; $("#fault-status").textContent = classification(d).replace(/_/g, " ").toUpperCase(); };
+      const comparisonOverlay = renderPhoneOverlay;
+      renderPhoneOverlay = (d) => { comparisonOverlay(d); const table = $("#carrier-comparison-table"); if (!table || !d || d.layer !== "phone" || state.source !== "live") return; const rows = d.carrierComparison || []; table.innerHTML = rows.length ? rows.map(row => `<tr><td>${display(row.carrier)}</td><td>${display(row.session)}</td><td>${fmt(row.rsrp, 0)} dBm</td><td>${fmt(row.rsrq, 0)} dB</td><td>${Number.isFinite(row.download) && row.download >= 0 ? fmt(row.download, 2) + " Mbps" : "—"}</td><td>${Number.isFinite(row.httpSuccess) ? fmt(row.httpSuccess, 0) + "%" : "—"}</td><td>${fmt(row.samples, 0)}</td></tr>`).join("") : `<tr><td colspan="7" style="color:var(--muted)">Collect Jio and BSNL sessions to compare them.</td></tr>`; };
+      const friendlyOverlay = renderPhoneOverlay;
+      renderPhoneOverlay = (d) => { friendlyOverlay(d); if (!d || d.layer !== "phone" || state.source !== "live") return; const label = userFaultLabel(classification(d)), note = $("#diagnostic-note"); $("#fault-status").textContent = label.toUpperCase(); $("#kpi-fault").textContent = label.toUpperCase(); if (note) note.textContent = note.textContent.replace(/Cellular status: [^.]+/, `Cellular status: ${label.toLowerCase()}`); };
+      init();
+      setInterval(() => renderPhoneOverlay(state.latest), 1000);
+    })();
+  </script>
+  <script>
+    // Trinetra is the public project name; piprobe remains the internal
+    // MQTT/database compatibility namespace.
+    document.title = "Trinetra Live Telemetry & Diagnostics Dashboard";
+    const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
+    while (walker.nextNode()) {
+      walker.currentNode.nodeValue = walker.currentNode.nodeValue.replaceAll("PiProbe", "Trinetra");
+    }
+    document.querySelectorAll("[title]").forEach((node) => {
+      node.title = node.title.replaceAll("PiProbe", "Trinetra");
+    });
+    const refreshProbeLabels = () => {
+      document.querySelectorAll('[data-probe="phone_1"] .probe-copy span').forEach((node) => {
+        const next = node.textContent.replace("Wi-Fi probe", "Phone telemetry");
+        if (next !== node.textContent) node.textContent = next;
+      });
+    };
+    refreshProbeLabels();
+    setInterval(refreshProbeLabels, 1000);
+    new MutationObserver(refreshProbeLabels).observe(document.body, { childList: true, subtree: true });
+  </script>
+  <script>
+    (() => {
+      const text = (id) => document.getElementById(id)?.textContent.trim() || "Waiting";
+      const setCheck = (id, state, detail) => {
+        const el = document.getElementById(id);
+        if (!el) return;
+        el.className = `plain-check ${state}`;
+        const span = el.querySelector("span");
+        if (span) span.textContent = detail;
+      };
+      const updatePlainLanguage = () => {
+        const verdict = text("fault-status").toLowerCase().replace(/\s+/g, "_");
+        const top = text("status-text").toLowerCase();
+        const live = top.includes("live") && !top.includes("error");
+        const title = document.getElementById("plain-verdict-title");
+        const copy = document.getElementById("plain-verdict-copy");
+        const card = document.getElementById("plain-verdict");
+        const badge = document.getElementById("plain-verdict-status");
+        if (!title || !copy || !card || !badge) return;
+        let kind = live ? "good" : "bad";
+        let heading = "Waiting for live evidence…";
+        let explanation = "Trinetra is checking the Wi-Fi, router, Raspberry Pi, and outside Internet paths.";
+        if (!live) {
+          heading = "The live connection is unavailable";
+          explanation = "The dashboard cannot safely diagnose the network until fresh measurements return. Check the Pi, MQTT service, and ESP32 power."
+        } else if (verdict === "normal" || verdict.includes("connection_looks_healthy") || top.includes("nominal")) {
+          heading = "Your local network looks healthy";
+          explanation = "The Wi-Fi signal, home router path, Raspberry Pi link, and current outside-Internet sample are responding normally. No fault is confirmed."
+        } else if (verdict.includes("coverage_weak") || verdict.includes("signal_is_weak")) {
+          kind = "warn"; heading = "The signal is weak in this location";
+          explanation = "The sensor is too far from the router or the signal is being blocked. Move the router or sensor and test this room again."
+        } else if (verdict.includes("interference") || verdict.includes("wifi_is_crowded")) {
+          kind = "warn"; heading = "Nearby wireless traffic is disturbing this room";
+          explanation = "The signal is strong, but the channel is crowded or unstable. Try another Wi-Fi channel and move the router away from electronics."
+        } else if (verdict.includes("lan_congested") || verdict.includes("ap_overload") || verdict.includes("local_router_is_slow") || verdict.includes("wifi_network_is_busy")) {
+          kind = "warn"; heading = "The home router or local network is overloaded";
+          explanation = "The slowdown is happening before the outside Internet. Check heavy downloads, streaming devices, or restart the router if necessary."
+        } else if (verdict.includes("wan_down") || verdict.includes("internet_is_not_reachable")) {
+          kind = "bad"; heading = "The router works, but the outside Internet is down";
+          explanation = "Do not replace the Wi-Fi router yet. Check the ISP, hotspot, or mobile-data connection and repeat the test."
+        } else if (verdict.includes("wan_degraded") || verdict.includes("internet_is_slow")) {
+          kind = "warn"; heading = "The outside Internet may be slow";
+          explanation = "The local Wi-Fi path looks usable, but the Pi sees high Internet latency. Keep monitoring several samples before reporting an ISP fault."
+        } else if (verdict.includes("probe_fault") || verdict.includes("sensor_is_not_reporting")) {
+          kind = "bad"; heading = "A Trinetra sensor is not reporting correctly";
+          explanation = "Check the ESP32 power, Wi-Fi credentials, and its connection to the Raspberry Pi."
+        } else if (verdict.includes("inconclusive") || verdict.includes("not_enough_data")) {
+          kind = "warn"; heading = "There is not enough evidence yet";
+          explanation = "The measurements disagree or are incomplete. Keep the test running instead of blaming the router or ISP."
+        }
+        card.className = `plain-verdict ${kind}`;
+        title.textContent = heading;
+        copy.textContent = explanation;
+        badge.textContent = live ? (verdict === "normal" || verdict.includes("connection_looks_healthy") ? "OK" : "REVIEW") : "NO DATA";
+        badge.className = `status ${kind === "bad" ? "bad" : kind === "warn" ? "warn" : ""}`;
+        const stepRf = text("step-rf"), stepLan = text("step-lan"), stepWan = text("step-wan"), stepHealth = text("step-health");
+        setCheck("plain-rf", verdict.includes("coverage") || verdict.includes("interference") || verdict.includes("signal_is_weak") || verdict.includes("wifi_is_crowded") ? "warn" : "good", stepRf);
+        setCheck("plain-lan", verdict.includes("lan") || verdict.includes("ap_overload") || verdict.includes("local_router_is_slow") || verdict.includes("wifi_network_is_busy") ? "warn" : "good", stepLan);
+        setCheck("plain-wan", verdict.includes("wan") || verdict.includes("internet_is_slow") || verdict.includes("internet_is_not_reachable") ? (verdict.includes("down") || verdict.includes("not_reachable") ? "bad" : "warn") : "good", stepWan);
+        setCheck("plain-health", verdict.includes("probe") || verdict.includes("sensor_is_not_reporting") || !live ? "bad" : "good", stepHealth);
+        const technical = document.getElementById("plain-technical");
+        if (technical) technical.textContent = `Status: ${text("status-text")} · Classification: ${text("fault-status")} · ${stepRf} · ${stepLan} · ${stepWan} · ${stepHealth}`;
+      };
+      updatePlainLanguage();
+      setInterval(updatePlainLanguage, 1000);
+    })();
+  </script>
+</body>
+</html>

@@ -1,0 +1,149 @@
+{
+  "annotations": {
+    "list": []
+  },
+  "editable": true,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 1,
+  "id": null,
+  "links": [],
+  "liveNow": true,
+  "panels": [
+    {
+      "collapsed": false,
+      "gridPos": { "h": 4, "w": 24, "x": 0, "y": 0 },
+      "id": 1,
+      "title": "System Status & Live Ground Truth",
+      "type": "row"
+    },
+    {
+      "datasource": { "type": "influxdb", "uid": "InfluxDB_v2" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "red", "value": 1 }
+            ]
+          }
+        }
+      },
+      "gridPos": { "h": 4, "w": 6, "x": 0, "y": 1 },
+      "id": 2,
+      "options": {
+        "colorMode": "background",
+        "graphMode": "none",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
+        "textMode": "auto"
+      },
+      "title": "Active Ground Truth Class",
+      "type": "stat",
+      "targets": [
+        {
+          "query": "from(bucket: \"telemetry\")\n  |> range(start: -5m)\n  |> filter(fn: (r) => r[\"_measurement\"] == \"network_telemetry\")\n  |> filter(fn: (r) => r[\"_field\"] == \"gw_loss_pct\")\n  |> keep(columns: [\"fault_class\"])\n  |> last()"
+        }
+      ]
+    },
+    {
+      "datasource": { "type": "influxdb", "uid": "InfluxDB_v2" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "custom": { "axisCenteredZero": false, "drawStyle": "line", "lineInterpolation": "smooth" },
+          "unit": "ms"
+        }
+      },
+      "gridPos": { "h": 8, "w": 12, "x": 6, "y": 1 },
+      "id": 3,
+      "options": { "legend": { "displayMode": "table", "placement": "bottom" } },
+      "title": "Cross-Layer RTT Comparison (Pi Wired vs ESP32 Wi-Fi)",
+      "type": "timeseries",
+      "targets": [
+        {
+          "query": "from(bucket: \"telemetry\")\n  |> range(start: -15m)\n  |> filter(fn: (r) => r[\"_measurement\"] == \"network_telemetry\")\n  |> filter(fn: (r) => r[\"_field\"] == \"inet_rtt_mean_ms\" or r[\"_field\"] == \"gw_rtt_mean_ms\")\n  |> aggregateWindow(every: 5s, fn: mean, createEmpty: false)"
+        }
+      ]
+    },
+    {
+      "datasource": { "type": "influxdb", "uid": "InfluxDB_v2" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "custom": { "drawStyle": "line", "lineInterpolation": "linear" },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "red", "value": null },
+              { "color": "orange", "value": -75 },
+              { "color": "green", "value": -65 }
+            ]
+          },
+          "unit": "dBm"
+        }
+      },
+      "gridPos": { "h": 8, "w": 6, "x": 18, "y": 1 },
+      "id": 4,
+      "options": { "legend": { "displayMode": "list", "placement": "bottom" } },
+      "title": "ESP32 Wi-Fi Signal Strength (RSSI)",
+      "type": "timeseries",
+      "targets": [
+        {
+          "query": "from(bucket: \"telemetry\")\n  |> range(start: -15m)\n  |> filter(fn: (r) => r[\"_measurement\"] == \"network_telemetry\")\n  |> filter(fn: (r) => r[\"_field\"] == \"rssi_calibrated_dbm\" or r[\"_field\"] == \"rssi_raw_dbm\")\n  |> aggregateWindow(every: 5s, fn: mean, createEmpty: false)"
+        }
+      ]
+    },
+    {
+      "datasource": { "type": "influxdb", "uid": "InfluxDB_v2" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "unit": "percent"
+        }
+      },
+      "gridPos": { "h": 6, "w": 12, "x": 0, "y": 9 },
+      "id": 5,
+      "options": { "legend": { "displayMode": "list", "placement": "bottom" } },
+      "title": "Packet Loss % (Wired vs. Wireless)",
+      "type": "timeseries",
+      "targets": [
+        {
+          "query": "from(bucket: \"telemetry\")\n  |> range(start: -15m)\n  |> filter(fn: (r) => r[\"_measurement\"] == \"network_telemetry\")\n  |> filter(fn: (r) => r[\"_field\"] == \"gw_loss_pct\" or r[\"_field\"] == \"inet_loss_pct\")\n  |> aggregateWindow(every: 5s, fn: mean, createEmpty: false)"
+        }
+      ]
+    },
+    {
+      "datasource": { "type": "influxdb", "uid": "InfluxDB_v2" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "unit": "ms"
+        }
+      },
+      "gridPos": { "h": 6, "w": 12, "x": 12, "y": 9 },
+      "id": 6,
+      "options": { "legend": { "displayMode": "list", "placement": "bottom" } },
+      "title": "DNS Latency & HTTP TTFB (Pi Wired)",
+      "type": "timeseries",
+      "targets": [
+        {
+          "query": "from(bucket: \"telemetry\")\n  |> range(start: -15m)\n  |> filter(fn: (r) => r[\"_measurement\"] == \"network_telemetry\")\n  |> filter(fn: (r) => r[\"_field\"] == \"dns_latency_ms\" or r[\"_field\"] == \"http_ttfb_ms\")\n  |> aggregateWindow(every: 5s, fn: mean, createEmpty: false)"
+        }
+      ]
+    }
+  ],
+  "refresh": "5s",
+  "schemaVersion": 38,
+  "style": "dark",
+  "tags": ["piprobe", "diagnosis", "iot"],
+  "time": { "from": "now-15m", "to": "now" },
+  "timepicker": { "refresh_intervals": ["1s", "5s", "10s", "30s"] },
+  "timezone": "browser",
+  "title": "Trinetra Real-Time Diagnostic Dashboard",
+  "uid": "piprobe-live-dash",
+  "version": 1
+}

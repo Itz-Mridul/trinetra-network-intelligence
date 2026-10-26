@@ -1,0 +1,24 @@
+[Unit]
+Description=Trinetra WAN Baseline Collector
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=__PIPROBE_USER__
+WorkingDirectory=__PIPROBE_DIR__
+ExecStart=/usr/bin/python3 __PIPROBE_DIR__/pi_scripts/wan_probe.py
+Restart=always
+RestartSec=10
+Environment="PIPROBE_MQTT_BROKER=localhost"
+Environment="PIPROBE_INTERVAL=10"
+Environment="PIPROBE_ID=pi5_gateway"
+Environment="PIPROBE_ROOM=server_corner"
+Environment="PIPROBE_SITE_ID=unassigned_site"
+Environment="PIPROBE_SESSION_ID="
+Environment="PIPROBE_LOCATION_ID=server_corner"
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target

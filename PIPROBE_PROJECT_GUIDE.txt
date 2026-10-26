@@ -1,0 +1,456 @@
+TRINETRA PROJECT GUIDE
+=====================
+
+Project name
+------------
+Trinetra: a portable, evidence-based network diagnosis system.
+
+Purpose
+-------
+Trinetra is designed to be carried to different locations such as a home,
+college, office, hostel, lab, or outdoor survey point. It measures several
+network layers and explains the likely cause of an outage or slow connection.
+
+The system is intended to distinguish between:
+
+  - weak Wi-Fi coverage;
+  - Wi-Fi interference or channel contention;
+  - local gateway/router problems;
+  - Raspberry Pi or probe connectivity problems;
+  - WAN/ISP latency, packet loss, DNS, or HTTP problems;
+  - cellular coverage problems reported by the phone;
+  - a failed or disconnected measurement probe.
+
+The goal is to replace "the internet is slow" with a measured explanation such
+as "Wi-Fi signal is healthy, but Internet latency and packet loss are high" or
+"cellular RSRP is weak while the local Wi-Fi path is healthy."
+
+
+System architecture
+-------------------
+
+  ESP32 Wi-Fi probes
+       |
+       | MQTT telemetry over the survey Wi-Fi
+       v
+  Raspberry Pi
+       |-- Mosquitto MQTT broker, port 1883
+       |-- MQTT-to-InfluxDB bridge or Telegraf
+       |-- WAN probe
+       |-- InfluxDB 1.x, port 8086
+       |-- Trinetra live dashboard, port 8888
+       |-- Optional Grafana, port 3000
+       v
+  Live dashboard and analysis scripts
+
+The canonical deployment uses InfluxDB 1.x and the InfluxQL database named
+"piprobe". Both the native Raspberry Pi deployment and the Docker deployment
+are aligned to this model.
+
+
+Hardware
+--------
+
+Required:
+
+  - Raspberry Pi 5 or compatible Raspberry Pi running Raspberry Pi OS;
+  - one or more ESP32-WROOM development boards;
+  - USB power for the Pi and ESP32 boards;
+  - a Wi-Fi network or phone hotspot at the survey site.
+
+Optional:
+
+  - Nothing phone for cellular/phone telemetry;
+  - USB tethering from the phone for Pi Internet access;
+  - additional ESP32 probes for spatial measurements;
+  - battery pack, enclosure, status display, or physical survey buttons.
+
+Important network rule:
+
+  The ESP32 and the Pi must be able to reach the same MQTT broker. If the
+  ESP32 is connected to a phone hotspot but the Pi is connected only through
+  USB tethering, the devices may be on different subnets. The Pi's wlan0
+  interface should join the same 2.4 GHz Wi-Fi network as the ESP32.
+
+
+Repository structure
+--------------------
+
+  dashboard/index.html
+      Live-only browser dashboard. It discovers probes from InfluxDB and
+      displays Wi-Fi, WAN, and phone telemetry.
+
+  dashboard/server.py
+      HTTP server and same-origin InfluxQL proxy. This avoids browser CORS
+      failures when the dashboard queries the Pi's InfluxDB instance.
+
+  dashboard/Dockerfile
+      Container image for the live dashboard server.
+
+  firmware/esp32_probe/esp32_probe.ino
+      ESP32 firmware. Measures Wi-Fi RSSI, gateway RTT, Pi RTT, packet loss,
+      AP counts, uptime, memory, fault state, and survey identity.
+
+  firmware/esp32_probe/config.example.h
+      Safe configuration template. Copy to a private config.h and enter the
+      current Wi-Fi and MQTT settings. Never commit private credentials.
+
+  pi_scripts/mqtt_to_influx.py
+      MQTT-to-InfluxDB bridge. Accepts Wi-Fi, WAN, and phone telemetry.
+
+  pi_scripts/wan_probe.py
+      Raspberry Pi WAN baseline collector. Measures gateway RTT, Internet RTT,
+      loss, DNS latency, HTTP time-to-first-byte, CPU temperature, and memory.
+
+  pi_scripts/start_piprobe_tmux.sh
+      Starts the bridge, WAN probe, and dashboard in persistent tmux sessions.
+
+  pi_scripts/start_survey.sh
+      Starts a named portable survey with site, session, and location IDs.
+
+  pi_scripts/piprobe-wan.service
+      Systemd service template for the WAN collector.
+
+  pi_scripts/install_user_autostart.sh
+      No-root fallback that starts Trinetra processes after reboot using the
+      user's crontab.
+
+  config/docker-compose.yml
+      Reproducible Docker stack: Mosquitto, InfluxDB 1.8, Telegraf, Grafana,
+      and the Trinetra dashboard.
+
+  config/telegraf.conf
+      MQTT consumer and InfluxDB 1.x output configuration.
+
+  analysis/features.py
+      Builds cross-layer feature windows from telemetry.
+
+  analysis/classify_rules.py
+      Explainable rule-based fault classifier.
+
+  analysis/classify_ml.py
+      Machine-learning classification pipeline.
+
+  analysis/calibration.py
+      Board-to-board RSSI calibration and uncertainty analysis.
+
+  analysis/evaluate.py
+      Evaluation report, metrics, confusion matrix, and figures.
+
+  data/
+      Development data, calibration records, labels, feature windows, model,
+      and generated evaluation figures.
+
+  tests/test_smoke.py
+      Dependency-free checks for files, configuration contracts, Python syntax,
+      and secret hygiene.
+
+  Makefile
+      Repeatable local checks and analysis commands.
+
+
+Telemetry layers
+----------------
+
+ESP32 Wi-Fi layer:
+
+  - rssi_raw_dbm and calibrated RSSI;
+  - gateway RTT and jitter;
+  - Pi RTT and jitter;
+  - gateway/Pi packet loss;
+  - AP count and on-channel AP count;
+  - channel, BSSID, uptime, free heap, reconnect count;
+  - probe_id, site_id, session_id, and location_id.
+
+Pi WAN layer:
+
+  - gateway RTT and loss;
+  - Internet RTT and loss;
+  - DNS latency;
+  - HTTP time-to-first-byte;
+  - throughput fields when available;
+  - Pi CPU and memory health.
+
+Phone layer:
+
+  - carrier name;
+  - network type such as LTE;
+  - data state;
+  - network location and accuracy;
+  - registered cell ID;
+  - RSRP and RSRQ;
+  - SINR and SIM slot when Android actually reports them.
+
+Unavailable values must remain unavailable. Trinetra must not invent SINR, SIM
+slot, Wi-Fi spectrum, or other values that the source device did not report.
+
+
+First-time Raspberry Pi setup
+-----------------------------
+
+From the Pi project directory:
+
+  cp config/.env.example config/.env
+  # Edit the private Grafana password in config/.env.
+  bash pi_scripts/setup_pi.sh
+  bash pi_scripts/install_service.sh
+
+If systemd installation requires administrator access, use:
+
+  bash pi_scripts/install_user_autostart.sh
+
+Check services:
+
+  tmux ls
+  ss -ltn | grep -E ':1883|:8086|:8888'
+  curl -I http://localhost:8888/
+  curl http://localhost:8086/ping
+
+Open the dashboard at:
+
+  http://PI_IP:8888/
+
+The dashboard must show LIVE DATA only when current InfluxDB telemetry is
+available. If the source fails, it shows LIVE ERROR and recovery instructions.
+
+
+Docker deployment
+-----------------
+
+From the repository root:
+
+  cp config/.env.example config/.env
+  # Replace the Grafana password placeholder.
+  cd config
+  docker compose up -d
+
+Expected containers:
+
+  piprobe_mosquitto
+  piprobe_influxdb
+  piprobe_telegraf
+  piprobe_grafana
+  piprobe_dashboard
+
+Dashboard:
+
+  http://PI_IP:8888/
+
+Grafana:
+
+  http://PI_IP:3000/
+
+The Docker dashboard runs dashboard/server.py and proxies InfluxQL requests to
+the InfluxDB container at http://influxdb:8086.
+
+
+ESP32 setup
+-----------
+
+1. Copy the configuration template privately:
+
+     cp firmware/esp32_probe/config.example.h firmware/esp32_probe/config.h
+
+2. Set, in the private config.h:
+
+     WIFI_SSID
+     WIFI_PASSWORD
+     MQTT_BROKER
+     PROBE_ID
+     SITE_ID
+     SESSION_ID
+     LOCATION_ID
+     CALIBRATION_BIAS
+
+3. Prefer MQTT_BROKER="piprobe.local" when mDNS works. Otherwise use the
+   Pi's current local Wi-Fi IP address.
+
+4. Flash the firmware with Arduino IDE or the selected ESP32 toolchain.
+
+5. Verify the serial monitor shows:
+
+     [Wi-Fi] Connected
+     [MQTT] ... connected!
+     [Telemetry Sent]
+
+The firmware also contains a portable setup portal. If configured for setup
+mode, connect to the Trinetra setup network and open the address printed by the
+serial monitor. Do not use the default setup password in a public deployment;
+change it before field use.
+
+
+Starting a portable survey
+--------------------------
+
+Use one shared site and session identity for all devices in a single survey:
+
+  bash pi_scripts/start_survey.sh SITE_001 entrance session_001
+
+Use a distinct LOCATION_ID for each ESP32 position. Keep PROBE_ID stable for
+each physical board.
+
+Example:
+
+  Probe 1: site=COLLEGE, session=jio_001, location=college_gate
+  Probe 2: site=COLLEGE, session=jio_001, location=library
+  Pi WAN:  site=COLLEGE, session=jio_001, location=server_corner
+
+Start a fresh session when changing from Jio to BSNL or when moving to a new
+site. This prevents measurements from different conditions being mixed.
+
+
+Phone telemetry with Termux
+---------------------------
+
+Install Termux and Termux:API on the Nothing phone from a consistent source.
+Inside Termux:
+
+  pkg update
+  pkg install termux-api jq mosquitto
+
+Grant Termux:API location and phone permissions. Enable Location and set the
+Termux battery mode to unrestricted.
+
+Test commands:
+
+  termux-telephony-deviceinfo
+  termux-telephony-cellinfo
+  termux-location -p network -r once
+
+The current phone workflow publishes JSON to:
+
+  MQTT topic: piprobe/phone/telemetry
+  probe_id:   phone_1
+  layer:      phone
+
+The dashboard displays carrier, network type, location, cell ID, RSRP, RSRQ,
+and other reported fields. Missing fields remain Unavailable.
+
+To compare Jio and BSNL, select one SIM as mobile data, collect a complete
+session, export the CSV, then switch the mobile-data SIM and collect a new
+session at the same location.
+
+
+Checking whether the ESP32 is connected
+---------------------------------------
+
+On the Pi:
+
+  mosquitto_sub -h localhost -t 'piprobe/+/wifi' -v
+
+If no messages appear:
+
+  1. Check that the ESP32 is powered.
+  2. Confirm the Pi and ESP32 are on the same LAN.
+  3. Confirm the ESP32 MQTT_BROKER points to the Pi.
+  4. Confirm Mosquitto is listening:
+
+       ss -ltn | grep 1883
+
+  5. Check the ESP32 serial monitor for Wi-Fi and MQTT errors.
+  6. Confirm the Pi's wlan0 is connected:
+
+       ip -br addr
+       ip route
+
+If the Pi is connected only through USB tethering and the ESP32 is connected
+to a phone Wi-Fi hotspot, wlan0 must also join the same hotspot or routing
+between the two networks must be explicitly configured.
+
+
+Troubleshooting the Pi Wi-Fi over SSH
+-------------------------------------
+
+The Pi GUI is not required. Use SSH:
+
+  nmcli device status
+  nmcli device wifi list
+  sudo nmcli device wifi rescan
+  sudo nmcli connection up id "<CURRENT_NETWORK_PROFILE>" ifname wlan0
+  hostname -I
+
+If the SSID is not listed, enable the phone hotspot and set it to 2.4 GHz.
+The Pi cannot connect to a network it cannot see.
+
+
+Analysis and validation
+-----------------------
+
+Run project checks:
+
+  make check
+
+Run calibration:
+
+  make calibration
+
+Run the model evaluation:
+
+  make evaluate
+
+The repository contains development/calibration data and a saved model. The
+current included evaluation reports very high performance, but it is not a
+replacement for a real held-out field dataset.
+
+For research validation, collect separate real sessions for:
+
+  normal, wan_degraded, wan_down, dns_fail, coverage_weak,
+  interference, ap_overload, lan_congested, and probe_fault.
+
+Do not train and test on the same field session. Record the fault start and
+end times and keep a separate test location or test session.
+
+
+Security rules
+--------------
+
+  - Never commit firmware/esp32_probe/config.h.
+  - Never put Wi-Fi, SSH, MQTT, or Grafana passwords in chat or reports.
+  - Rotate any credential previously exposed in a terminal or message.
+  - Change the ESP32 setup portal's default password before public deployment.
+  - Mosquitto is currently configured for a trusted local prototype network;
+    add MQTT authentication/TLS before using it on an untrusted network.
+  - Keep config/.env private.
+
+
+Current verified status
+-----------------------
+
+The local project currently has:
+
+  - live dashboard code;
+  - MQTT, WAN, InfluxDB, and phone telemetry support;
+  - aligned InfluxDB 1.x Docker/native deployment;
+  - repaired WAN service and tmux startup files;
+  - dependency-free smoke checks;
+  - passing Python and shell syntax checks;
+  - passing calibration and evaluation commands.
+
+The Raspberry Pi has also been reachable over SSH with:
+
+  - MQTT listening on port 1883;
+  - InfluxDB 1.13.1 healthy on port 8086;
+  - dashboard returning HTTP 200 on port 8888;
+  - WAN telemetry arriving.
+
+At the last connection check, the Pi's wlan0 was down and no fresh ESP32 Wi-Fi
+telemetry was arriving. The remaining field action is to make the phone
+hotspot visible to wlan0, connect the Pi to it, and then confirm fresh ESP32
+MQTT messages.
+
+
+Project completion definition
+-----------------------------
+
+The project is complete for a software prototype when:
+
+  - all probes use one site/session identity;
+  - ESP32 Wi-Fi telemetry reaches MQTT and InfluxDB;
+  - Pi WAN telemetry reaches MQTT and InfluxDB;
+  - the dashboard shows live data and clear recovery states;
+  - phone telemetry is collected without fabricated fields;
+  - calibration and real field validation are recorded;
+  - credentials are private and deployment is reproducible.
+
+The final research-quality milestone is a real, held-out multi-location dataset
+and a documented comparison of Jio/BSNL or other network conditions.

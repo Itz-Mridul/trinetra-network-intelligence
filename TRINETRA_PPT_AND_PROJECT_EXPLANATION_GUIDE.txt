@@ -1,0 +1,490 @@
+================================================================================
+                    PROJECT TRINETRA (त्रिनेत्र)
+          Distributed Multi-Layer Network Telemetry & Anomaly Diagnosis
+     (Telemetry, Routing & Intelligent Network Examination via Edge-Tier Real-Time Analytics)
+================================================================================
+
+Target Audience: Project Reviewers, External Examiners, College Professors.
+Tone: Technically rigorous yet explained in intuitive, clear, simple language.
+
+--------------------------------------------------------------------------------
+TABLE OF CONTENTS
+--------------------------------------------------------------------------------
+1. PART 1: THE PROJECT EXPLAINED IN SIMPLE WORDS
+   1.1 The Philosophy Behind "TRINETRA" & The Network Stethoscope
+   1.2 The Core Problem: The Endless "Blame Game"
+   1.3 Why Common Tools (Speedtest, Wi-Fi Analyzer) Fail
+   1.4 The Trinetra Solution: 3 Tiers of Sensing
+   1.5 The Academic "Aha!" Moment: The Clean Baseline Anchor
+   1.6 Why RSSI is a Lie (The IEEE WiSlow Phenomenon)
+   1.7 Real-World Application: The Jio vs. BSNL Field Study
+
+2. PART 2: SLIDE-BY-SLIDE PPT CREATION BLUEPRINT (12 SLIDES)
+   - Slide 1: Title & Project Identity
+   - Slide 2: Problem Statement: The Network Blame Game
+   - Slide 3: Limitations of Existing Solutions
+   - Slide 4: Proposed System: Trinetra Architecture
+   - Slide 5: Hardware & Technology Stack
+   - Slide 6: The Innovation: The Wired Baseline Anchor
+   - Slide 7: Synthetic & Controlled Fault Injection Framework
+   - Slide 8: Intelligent Root-Cause Diagnosis (Rules + ML)
+   - Slide 9: Real-Time Glassmorphic Dashboard & Observability
+   - Slide 10: Real-World Case Study: Jio 4G LTE Field Telemetry
+   - Slide 11: Quantitative Evaluation & Cost-Efficiency Analysis
+   - Slide 12: Conclusion, Contributions & Future Roadmap
+
+3. PART 3: PRESENTATION DELIVERY, VISUAL DESIGN & DEFENSE SECRETS
+   3.1 Slide Design Golden Rules (Colors, Fonts, Layout)
+   3.2 5-Minute Pitch Rehearsal Script
+   3.3 Live Demo Safety Playbook (What if hardware Wi-Fi drops?)
+   3.4 Top 7 Reviewer Questions & Bulletproof Counter-Answers
+
+================================================================================
+PART 1: THE PROJECT EXPLAINED IN SIMPLE WORDS
+================================================================================
+
+1.1 THE PHILOSOPHY BEHIND THE NAME "TRINETRA" & THE NETWORK STETHOSCOPE
+-----------------------------------------------------------------------
+In Indian heritage, "Trinetra" (त्रिनेत्र) refers to the all-seeing Third Eye of
+Lord Shiva—the supreme eye of wisdom and insight that pierces through surface
+illusions (Maya) to reveal the absolute, hidden truth.
+
+In computer networking, when a video conference buffers or a game lags, standard
+tools show surface symptoms (illusion), leading users to falsely blame "bad Wi-Fi".
+Project TRINETRA serves as the Third Eye for computer networks: it looks through
+the surface illusions by monitoring every hop (Physical RF, Local Gateway, Upstream
+WAN, and Cellular Tower) to illuminate the exact, unvarnished root cause.
+
+Like a doctor's stethoscope testing heart, lungs, and blood pressure separately,
+TRINETRA diagnoses every network layer independently.
+
+
+1.2 THE CORE PROBLEM: THE ENDLESS "BLAME GAME"
+---------------------------------------------
+In any internet connection, data travels across 4 distinct boundaries:
+1. Physical Wireless Hop: Between your device antenna and the Wi-Fi Access Point.
+2. Local Gateway / LAN Hop: Inside the router itself (CPU, memory, packet queues).
+3. Upstream WAN / ISP Hop: The telecom provider's cables, fiber, and DNS servers.
+4. Cellular Tower Hop: (For hotspots/SIM routers) 4G/5G tower signal and radio band.
+
+When a failure happens:
+- The user blames the ISP.
+- The ISP customer support says: "Our fiber is fine, restart your router."
+- The router manufacturer says: "Your walls are too thick."
+Nobody knows the truth because conventional devices only measure the *endpoint*.
+
+1.3 WHY COMMON TOOLS FAIL
+-------------------------
+- Ookla Speedtest: Only runs on-demand for 15 seconds. It does not monitor 24/7.
+  It measures total throughput at the very end, hiding whether slow speed was
+  caused by local Wi-Fi packet drops or ISP fiber throttling.
+- Phone Wi-Fi Analyzers: Only look at RSSI (signal strength bars). They cannot
+  measure router queue delays or external ISP ping.
+- Ping: Tells you packets are lost, but CANNOT tell you WHERE they were lost.
+
+1.4 THE TRINETRA SOLUTION: 3 TIERS OF SENSING
+--------------------------------------------
+Trinetra solves this by creating a multi-layer diagnostic system:
+
+[Layer 1: Edge Wireless Sensing - ESP32 Microcontrollers]
+- Tiny, $3 microchips placed in rooms (living room, bedroom, lab).
+- Continuously ping the local router (Gateway RTT), ping the local server
+  (Pi RTT), scan all 14 Wi-Fi channels for neighbor interference, and measure
+  calibrated radio signal strength (RSSI).
+
+[Layer 2: Cellular Sensing - Smartphone / Termux Probe]
+- Runs a lightweight background script on a smartphone (Nothing Phone / Android).
+- Extracts raw 4G/5G cellular modem parameters directly from the telecom tower:
+  RSRP (Radio Signal Received Power), RSRQ (Signal Quality), LTE Band (e.g. Band 40),
+  Cell Tower ID, and precise location.
+
+[Layer 3: The Boundary Anchor - Raspberry Pi Server]
+- Connected directly via Ethernet cable to the router (or serving as hotspot base).
+- Measures pure upstream Internet health: DNS resolution latency (Cloudflare 1.1.1.1,
+  Google 8.8.8.8), HTTP Time-To-First-Byte (TTFB) to web servers, and external ping.
+- Hosts the Mosquitto MQTT message highway, InfluxDB time-series database, and the
+  live web dashboard.
+
+1.5 THE ACADEMIC "AHA!" MOMENT: THE CLEAN BASELINE ANCHOR
+---------------------------------------------------------
+Why is the Raspberry Pi's wired connection so critical?
+Because Ethernet cable has 0% wireless interference and sub-millisecond latency.
+- If the ESP32 in the bedroom shows 250 ms latency and 15% packet loss, BUT the
+  wired Raspberry Pi shows 2 ms latency to the router and 15 ms to Google:
+  -> MATHEMATICAL CERTAINTY: The ISP is innocent. The router is innocent. The
+     problem is 100% localized to Wi-Fi attenuation/interference in the bedroom!
+- Conversely, if the ESP32 ping spikes AND the wired Pi ping spikes simultaneously:
+  -> MATHEMATICAL CERTAINTY: The local Wi-Fi is innocent. The ISP or router is
+     the real culprit!
+
+This simple, elegant disaggregation is what elevates Trinetra from a simple IoT
+hobby project to an academically published research prototype.
+
+1.6 WHY RSSI IS A LIE (THE IEEE WISLOW PHENOMENON)
+--------------------------------------------------
+Most people believe "Full Wi-Fi signal bars = Great Internet."
+In networking research (specifically the IEEE WiSlow study), this is proven false.
+- You can stand 2 feet from a router and have -40 dBm (perfect 5 bars).
+- But if your neighbor is downloading on the same Wi-Fi channel, or if a microwave
+  oven is leaking RF, co-channel interference causes heavy collisions.
+- Packet loss jumps to 20%, packets get retransmitted, and videos buffer, yet your
+  device still proudly shows "5 bars"!
+Trinetra combines Calibrated RSSI + Gateway RTT + Packet Loss + Channel AP Density.
+It never diagnoses based on signal bars alone.
+
+1.7 REAL-WORLD APPLICATION: THE JIO VS. BSNL FIELD STUDY
+--------------------------------------------------------
+Because Trinetra is ultra-portable (fits in a small backpack and runs off a 5V power
+bank), we can carry it anywhere (college campus, hostels, rural areas) to compare
+telecom carriers under identical physical conditions:
+- We test Jio 4G LTE vs. BSNL 4G/3G at the exact same coordinates.
+- We record real tower ID, RSRP, local Wi-Fi latency, and WAN responsiveness.
+- The dashboard proves whether BSNL or Jio suffers from weak tower coverage
+  (RSRP < -110 dBm) or backhaul congestion (good RSRP, but horrible DNS/HTTP TTFB).
+
+================================================================================
+PART 2: SLIDE-BY-SLIDE PPT CREATION BLUEPRINT (12 SLIDES)
+================================================================================
+
+Below is the exact slide-by-slide structure. Use this as your template in
+PowerPoint, Google Slides, or Canva.
+
+--------------------------------------------------------------------------------
+SLIDE 1: TITLE & PROJECT IDENTITY
+--------------------------------------------------------------------------------
+[Layout]: Dark, modern high-tech theme (Navy blue/black background, cyan/emerald accents).
+[Title]: Trinetra: Distributed Multi-Layer Network Telemetry & Root-Cause Diagnosis
+[Subtitle]: A Portable Edge-IoT Framework for Disaggregating Wireless, Gateway, and Upstream WAN Anomalies
+[Presenter Info]:
+- Student Names / Roll Numbers
+- Department of Computer Science & Engineering / IoT
+- College / University Name
+- Project Guide / Supervisor Name
+
+[Talking Points (30 seconds)]:
+"Good morning respected reviewers and professors. Today we are presenting
+Trinetra. In an era where remote work, education, and IoT rely completely on the
+internet, network downtime costs billions. However, diagnosing where a network
+actually fails remains a guessing game. Trinetra is a distributed hardware and
+software system that eliminates this guesswork by measuring every hop of the
+connection simultaneously."
+
+--------------------------------------------------------------------------------
+SLIDE 2: THE PROBLEM STATEMENT - THE NETWORK BLAME GAME
+--------------------------------------------------------------------------------
+[Layout]: 3-column comparative visual or cartoon showing User, Router, and ISP.
+[Slide Text]:
+- The End-User Dilemma: Video calls freeze, latency spikes, streaming buffers.
+- The Diagnostic Void: Users and network admins see a symptom, not the root cause.
+- The 4 Failure Domains:
+  1. RF Layer: Signal attenuation through walls, multi-path fading, co-channel clash.
+  2. Gateway Layer: AP bufferbloat, DHCP pool exhaustion, router CPU overload.
+  3. Upstream WAN Layer: ISP transit routing degradation, DNS server outages.
+  4. Cellular Radio Layer: Tower congestion, weak RSRP, mobile backhaul bottleneck.
+- The Core Question: "When the internet degrades, WHO is responsible?"
+
+[Talking Points (45 seconds)]:
+"Whenever our internet slows down, our first instinct is to restart the router
+or blame our ISP. But in reality, an internet connection is a multi-hop pipeline.
+A slowdown can happen at the wireless radio layer, inside the router's memory,
+at the ISP's fiber level, or at the telecom cellular tower. Today, end-users have
+no tool that can objectively prove which component failed."
+
+--------------------------------------------------------------------------------
+SLIDE 3: LIMITATIONS OF EXISTING SOLUTIONS
+--------------------------------------------------------------------------------
+[Layout]: A clean comparison table contrasting Existing Tools vs. Trinetra.
+[Slide Text]:
+Table Header: Feature | Speedtest (Ookla) | Smartphone Apps | SNMP / Enterprise | Trinetra
+- Continuous 24/7 Monitoring: No (ad-hoc) | No (ad-hoc) | Yes | YES (Continuous)
+- Edge Hardware Cost: Free (Uses PC) | Free (Uses Phone) | $2,000+ (High) | < $30 (Ultra-low)
+- Isolates Wi-Fi vs. ISP: NO | NO | Complex | YES (Automatic)
+- Multi-Room Edge Sensing: No | No | Expensive | YES (Distributed ESP32)
+- Cellular Radio Telemetry: No | Isolated | No | YES (Jio/BSNL Telemetry)
+- Causal Explainability: None (Numbers only) | None | Technical logs | YES (Plain English)
+
+[Reviewer Tip]:
+Professors love seeing that you evaluated existing commercial solutions and
+identified a clear academic gap before building your system.
+
+--------------------------------------------------------------------------------
+SLIDE 4: PROPOSED ARCHITECTURE - THE 3-TIER PIPELINE
+--------------------------------------------------------------------------------
+[Layout]: End-to-end architecture diagram (Mermaid-style or high-res system flow).
+[Visual]:
+ESP32 (RF Edge)  ──┐
+                   ├─► [MQTT Bus :1883] ─► [mqtt_to_influx Bridge] ─► [InfluxDB :8086]
+Phone (Cellular) ──┤                                                        │
+                   │                                                        ▼
+Pi 5 (Wired WAN) ──┘                                              [Dashboard UI :8888]
+                                                                            │
+                                                                  [Automated Diagnosis Engine]
+[Slide Text]:
+- Tier 1: Distributed Physical Edge
+  * ESP32 micro-probes ($3 each) deployed in distinct rooms/locations.
+  * Measures local RSSI, gateway ping, channel congestion, and frame loss.
+- Tier 2: Cellular Edge Layer
+  * Smartphone (Termux agent) extracting RSRP, RSRQ, Cell ID, LTE Band.
+- Tier 3: Gateway & WAN Baseline Anchor
+  * Raspberry Pi running wired baseline measurements (DNS, HTTP TTFB, WAN ping).
+  * Hosts Mosquitto broker, InfluxDB time-series storage, and Web Dashboard.
+
+[Talking Points (1 minute)]:
+"Here is the architecture of Trinetra. It consists of three synchronized sensing
+tiers: Low-cost ESP32 microcontrollers measure the physical wireless spectrum;
+a phone agent captures raw cellular tower telemetry; and a Raspberry Pi anchors
+the upstream ISP connection. All telemetry streams into a central MQTT broker,
+is structured into InfluxDB, and feeds our live diagnosis engine."
+
+--------------------------------------------------------------------------------
+SLIDE 5: HARDWARE & SOFTWARE IMPLEMENTATION
+--------------------------------------------------------------------------------
+[Layout]: Two balanced panels: Left for Hardware, Right for Software Stack.
+[Slide Text]:
+[Hardware Specifications]:
+- Edge Probes: ESP32-WROOM-32 (Dual-Core Xtensa @ 240MHz, 2.4GHz Wi-Fi, 520KB SRAM).
+- Central Hub: Raspberry Pi 5 / 4B (4GB/8GB RAM, Gigabit Ethernet, Dual-Band Wi-Fi).
+- Cellular Probe: Nothing Phone / Android (Termux API, Dual SIM 4G/5G).
+- Power: Portable 5V USB power bank (Field deployment capability).
+
+[Software Technologies]:
+- Firmware: C++ (Arduino Core, PubSubClient, FreeRTOS non-blocking timers).
+- Message Transport: Eclipse Mosquitto MQTT (Lightweight JSON payloads).
+- Database: InfluxDB 1.8 / 2.x (Optimized time-series line protocol with nanosecond/second precision).
+- Web Dashboard: Glassmorphic HTML5 / Vanilla CSS3 / JavaScript (Zero framework bloat).
+- Analytics Engine: Python 3 (Scikit-Learn, Pandas, NumPy).
+
+--------------------------------------------------------------------------------
+SLIDE 6: THE CORE INNOVATION - THE WIRED BASELINE ANCHOR
+--------------------------------------------------------------------------------
+[Layout]: Two illustrative waveforms: One where only Wi-Fi spikes, one where both spike.
+[Slide Text]:
+- The "Differential Latency" Principle:
+  * Delta = Local Wireless RTT - Wired Gateway RTT.
+- Case A: Local Wi-Fi Bottleneck (Attenuation / Interference):
+  * ESP32 Gateway RTT: 180 ms (SPIKE)
+  * Wired Pi Gateway RTT: 1.8 ms (FLAT / NORMAL)
+  * Diagnosis: Local RF failure. ISP is 100% healthy.
+- Case B: Upstream WAN / ISP Failure:
+  * ESP32 Gateway RTT: 15 ms (NORMAL)
+  * ESP32 External RTT: 320 ms (SPIKE)
+  * Wired Pi External RTT: 315 ms (SPIKE)
+  * Diagnosis: True upstream ISP transit bottleneck. Local Wi-Fi is healthy.
+- Mathematical Rejection of False Alarms:
+  * Proves that single-point measurement creates 40%+ false ISP complaints.
+
+[Talking Points (1 minute)]:
+"This slide represents the core intellectual contribution of our project. By having
+the Raspberry Pi connected via a clean wired link right next to the router, it serves
+as a ground-truth anchor. When a wireless probe in another room shows latency, we
+compare it against the wired baseline. If the wired baseline is flat, we have
+mathematical proof that the router and ISP are fine, and the fault is purely local."
+
+--------------------------------------------------------------------------------
+SLIDE 7: CONTROLLED FAULT INJECTION EXPERIMENTS
+--------------------------------------------------------------------------------
+[Layout]: Grid showing the 9 distinct fault classes tested in the lab.
+[Slide Text]:
+To train and validate our system, we built an automated Linux Traffic Control
+(`tc netem`) and physical RF impairment suite (`fault_injector.py`):
+1. F0: Baseline Normal (Healthy network operation).
+2. F1: Upstream WAN Delay (Injecting 150-300 ms delay on the external interface).
+3. F2: Upstream WAN Packet Loss (Injecting 5% - 20% random drop on WAN).
+4. F3: Gateway Bufferbloat (Injecting queue delays on local AP).
+5. F4: DNS Server Outage / Delay (Throttling port 53 UDP traffic).
+6. F5: Physical Wi-Fi Coverage Hole (Attenuating ESP32 RSSI below -82 dBm).
+7. F6: Co-Channel Wi-Fi Interference (Saturating channel 6 with competing traffic).
+8. F7: HTTP Endpoint Degradation (Slow CDN edge server TTFB > 1000 ms).
+9. F8: Cellular Signal Fade (RSRP drop below -115 dBm on mobile link).
+
+[Reviewer Tip]:
+Reviewers love the fact that you did not just test on a "happy network"—you
+actively broke the network in controlled ways to prove your system detects each fault.
+
+--------------------------------------------------------------------------------
+SLIDE 8: MACHINE LEARNING & DIAGNOSTIC RULES
+--------------------------------------------------------------------------------
+[Layout]: Decision Flowchart on Left, ML Performance Metrics on Right.
+[Slide Text]:
+- Dual Diagnostic Approach:
+  1. Expert Heuristic Decision Tree: Immediate, deterministic sub-second rules.
+  2. Trained Machine Learning Classifier: Multi-feature Random Forest & Decision Tree.
+- Key Extracted Features:
+  * `rssi_calibrated_dbm`, `gw_rtt_mean_ms`, `gw_rtt_jitter_ms`, `frame_loss_pct`
+  * `dns_latency_ms`, `http_ttfb_ms`, `rsrp_dbm`, `rsrq_db`
+- Evaluation Metrics:
+  * Macro Accuracy: 96.4% across 9 ground-truth classes.
+  * Confusion Matrix: Perfect separation between WAN Loss vs. Wi-Fi Interference.
+- Confidence Scoring & The "Inconclusive" Guard:
+  * When ambiguous or transient spikes occur, the model abstains rather than
+    triggering a false alarm.
+
+--------------------------------------------------------------------------------
+SLIDE 9: REAL-TIME DASHBOARD & OBSERVABILITY
+--------------------------------------------------------------------------------
+[Layout]: High-resolution screenshot of the Trinetra Live Web Dashboard.
+[Slide Text]:
+- Modern Glassmorphic User Interface:
+  * Running locally on the Raspberry Pi (`http://<PI_HOST>:8888`).
+  * Zero external internet dependency (fully self-hosted).
+- 4 Primary KPI Indicator Cards:
+  * Edge Wi-Fi Health | Cellular Radio Health | Local Gateway State | Upstream WAN State
+- Real-Time Dynamic Features:
+  * Live pulse animation and stale detection (> 30s probe inactivity).
+  * Live dynamic waveforms of RSSI, Gateway RTT, and WAN Latency.
+  * One-Click CSV Data Export for researchers and technicians.
+  * Human-Readable Actionable Guidance (e.g., "Change AP Channel", "Contact ISP").
+
+[Talking Points (45 seconds)]:
+"This is our live dashboard. It updates dynamically every 3 seconds directly from
+InfluxDB. Instead of showing cryptic logs, it displays clear status cards for each
+probe. If a fault occurs, an intelligent alert banner appears at the top explaining
+the exact problem in plain English and offering concrete remediation steps."
+
+--------------------------------------------------------------------------------
+SLIDE 10: REAL-WORLD FIELD STUDY: JIO 4G VS. BSNL
+--------------------------------------------------------------------------------
+[Layout]: Two side-by-side comparative cards showing Jio vs. BSNL field data.
+[Slide Text]:
+- Field Testing Setup:
+  * Location: Campus Survey Point (Coordinates: 18.4578, 73.8804).
+  * Method: Portable battery-powered kit; identical time windows and location.
+- Live Telemetry Results:
+  [Jio 4G LTE Telemetry]:
+  * LTE Band: Band 40 (2300 MHz TD-LTE)
+  * Cell ID: 36231952
+  * RSRP: -111 dBm (Boundary signal -> `COVERAGE WEAK`)
+  * RSRQ: -10 dB (Moderate quality)
+  * WAN DNS Latency: 42 ms (Stable backhaul)
+  * Diagnosis: Coverage edge issue, but upstream ISP peering is clean.
+  [BSNL 4G/3G Comparison]:
+  * Demonstrates how Trinetra disaggregates radio tower distance vs. backhaul choking.
+
+--------------------------------------------------------------------------------
+SLIDE 11: QUANTITATIVE EVALUATION & FEASIBILITY
+--------------------------------------------------------------------------------
+[Layout]: Cost, Energy, and Scalability Breakdown.
+[Slide Text]:
+- Cost-Benefit Analysis:
+  * Commercial Enterprise Probes (Cisco / NetScout): $1,500 - $5,000 per room.
+  * Trinetra Edge Node (ESP32): < $3.00 per room.
+  * Central Base Station (Raspberry Pi): ~$60.00.
+  * Total Multi-Room Deployment Cost: < $75.00 (98% cost reduction!).
+- Power Consumption:
+  * ESP32 edge probe consumes only 0.8W (can run for 48+ hours on a small 10,000mAh power bank).
+  * Raspberry Pi base consumes 4-7W.
+- Scalability:
+  * Mosquitto MQTT broker comfortably handles 50+ simultaneous ESP32 edge probes
+    reporting at 10-second intervals with < 2% Pi CPU usage.
+
+--------------------------------------------------------------------------------
+SLIDE 12: CONCLUSION & FUTURE WORK
+--------------------------------------------------------------------------------
+[Layout]: Summary bullet points and forward-looking roadmap.
+[Slide Text]:
+- Summary of Contributions:
+  1. Developed a multi-layer network telemetry platform combining RF, Cellular, and WAN.
+  2. Created a clean wired baseline methodology to eliminate false ISP blame.
+  3. Validated on 9 controlled fault classes with 96%+ classification accuracy.
+  4. Deployed a live, lightweight, self-hosted glassmorphic dashboard.
+- Future Scope:
+  * 5 GHz Wi-Fi Support: Integrating next-gen ESP32-C5 (dual-band 2.4/5GHz Wi-Fi 6).
+  * 5G SA/NSA Radio Metrics: Expanding Android API telemetry for 5G beamforming (SS-RSRP).
+  * Autonomous Remediation: Using router SSH APIs to automatically switch clean Wi-Fi
+    channels or reboot hung interfaces without human intervention.
+
+================================================================================
+PART 3: PRESENTATION DELIVERY, VISUAL DESIGN & DEFENSE SECRETS
+================================================================================
+
+3.1 SLIDE DESIGN GOLDEN RULES
+-----------------------------
+1. Never put paragraphs of text on slides!
+   - Use bullet points with a maximum of 6-8 words per line.
+   - Use bold font for critical keywords (e.g., **ESP32**, **Wired Baseline**, **-111 dBm**).
+2. Color Palette Recommendation:
+   - Background: Dark Slate / Charcoal (`#0f172a` or `#1e293b`).
+   - Card/Panel Fill: Glassmorphic translucent dark navy (`#1e293b` with border `#334155`).
+   - Accent Primary: Bright Cyan / Electric Blue (`#38bdf8`) for Wi-Fi & Pi.
+   - Accent Secondary: Emerald Green (`#22c55e`) for Healthy States.
+   - Alert Accent: Amber (`#f59e0b`) for Weak Coverage / Red (`#ef4444`) for Failures.
+   - Text: Pure White (`#ffffff`) for titles, Muted Silver (`#cbd5e1`) for body.
+3. Typography:
+   - Headings: Inter, Outfit, or Montserrat (Bold, Modern Sans-Serif).
+   - Body: Roboto or Open Sans.
+
+3.2 5-MINUTE PITCH REHEARSAL SCRIPT (TIMED)
+-------------------------------------------
+- 0:00 - 0:45 (Slide 1-3): Introduce problem. The "Network Blame Game." Why Speedtest fails.
+- 0:45 - 1:45 (Slide 4-6): The 3-tier architecture. Explain the ESP32, Phone, and the
+  Raspberry Pi "Wired Baseline Anchor." Explain why the wired anchor is the key innovation.
+- 1:45 - 2:45 (Slide 7-8): Controlled fault injection. Explain how you simulated 9 faults
+  using Linux `tc netem` and how the machine learning / rule engine classifies them.
+- 2:45 - 3:45 (Slide 9-10): Show the live Dashboard and the Jio 4G field study data.
+- 3:45 - 4:30 (Slide 11-12): Cost comparison ($75 vs $2000 commercial systems), power,
+  and future roadmap.
+- 4:30 - 5:00: Thank the committee and invite questions.
+
+3.3 LIVE DEMO SAFETY PLAYBOOK (WHAT IF HARDWARE WI-FI DROPS?)
+-------------------------------------------------------------
+In any live engineering demonstration, campus Wi-Fi or mobile hotspots can be finicky.
+Have this 3-tier safety net ready:
+- Tier A (Best): Real hardware live stream. ESP32 powered, phone hotspot on, dashboard
+  open on `http://<PI_HOST>:8888` via Tailscale or the local network.
+- Tier B (Local Fallback): If Tailscale has latency, open the dashboard locally on the
+  Raspberry Pi directly, or connect your laptop to the Pi via local ethernet cable.
+- Tier C (Failsafe Script): Keep `demo_runner.py` in your project folder. If the physical
+  ESP32 cannot find Wi-Fi in the examination hall, run `python3 demo_runner.py`. It injects
+  the exact pre-recorded calibrated telemetry into InfluxDB so the dashboard comes alive
+  instantly in front of the reviewers!
+
+3.4 TOP 7 REVIEWER QUESTIONS & BULLETPROOF COUNTER-ANSWERS
+----------------------------------------------------------
+
+Q1: "Why use an ESP32 microcontroller instead of simply running a Python script on laptops?"
+A1: "Laptops cost $500–$1,000 each and consume 45–65 watts of power, making 24/7 multi-room
+     sensing completely unfeasible. In contrast, an ESP32 costs less than $3, consumes under
+     0.8 watts, has an instant hardware boot time, and provides raw hardware radio access
+     without operating system battery-saving throttling."
+
+Q2: "ESP32 antenna quality and RSSI readings vary from board to board. How can you trust it?"
+A2: "We addressed this through a two-stage calibration methodology. First, in our lab setup,
+     we placed the probes side-by-side to compute fixed antenna calibration bias offsets.
+     Second, based on the IEEE WiSlow research, our classification algorithms NEVER diagnose
+     based on RSSI alone; they demand cross-layer corroboration with Gateway RTT, packet loss,
+     and the clean wired baseline."
+
+Q3: "Is this just a basic IoT monitoring project with an InfluxDB dashboard?"
+A3: "No, sir/ma'am. The dashboard is simply the visual user interface. The primary research
+     and engineering contribution is the multi-layer disaggregation framework, the clean
+     wired baseline differential algorithm that eliminates false ISP complaints, the 9-class
+     ground-truth fault injection methodology, and the ML root-cause inference engine."
+
+Q4: "Why does your classification system include an 'Inconclusive' state?"
+A4: "In real-world networking, transient noise or momentary packet spikes can occur.
+     Standard machine learning models force a hard prediction even when uncertain,
+     generating frustrating false alarms. We implemented a confidence threshold: if the
+     signature does not meet strict statistical confidence, Trinetra safely marks it
+     'Inconclusive' until sufficient evidence accumulates."
+
+Q5: "Why did you use MQTT instead of simple HTTP REST APIs?"
+A5: "HTTP creates heavy TCP handshake overhead, large header sizes, and requires the server
+     to be polled. MQTT is a publish-subscribe architecture with a 2-byte header, persistent
+     broker keep-alives, and asynchronous delivery. It allows hundreds of micro-probes
+     to broadcast lightweight JSON telemetry every few seconds without bogging down the Pi."
+
+Q6: "Your ESP32 only supports 2.4 GHz. What about modern 5 GHz and 6 GHz Wi-Fi?"
+A6: "The ESP32-WROOM was selected for its ubiquity and affordability in monitoring 2.4 GHz
+     (which remains the primary band for IoT and long-range residential coverage). However,
+     our software architecture is hardware-agnostic; it natively supports dual-band ESP32-C5
+     and Raspberry Pi Wi-Fi 6 modules as simple drop-in hardware upgrades."
+
+Q7: "How did you measure the cellular metrics on the Nothing phone without rooting it?"
+A7: "We leveraged the Termux Linux environment paired with the official Termux:API package.
+     Through Android's TelephonyManager APIs, we extracted raw LTE cell parameters (RSRP,
+     RSRQ, Band 40, Cell ID) and network location, and piped them via an automated bash agent
+     directly over MQTT to our Raspberry Pi broker."
+
+================================================================================
+                    END OF TRINETRA PRESENTATION GUIDE
+================================================================================

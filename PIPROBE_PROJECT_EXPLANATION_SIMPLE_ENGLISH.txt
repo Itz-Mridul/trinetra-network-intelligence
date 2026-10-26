@@ -1,0 +1,511 @@
+TRINETRA
+PORTABLE NETWORK INTELLIGENCE AND OUTAGE DIAGNOSIS SYSTEM
+
+Complete project explanation in simple English
+
+
+1. INTRODUCTION
+===============
+
+Trinetra is a portable system that helps us understand why a network is slow,
+unstable, or completely unavailable.
+
+Normally, when the Internet stops working, people say that the Wi-Fi is bad.
+However, the real problem may be somewhere else. The Wi-Fi signal may be
+strong while the Internet service provider is having a problem. The router may
+be overloaded. A nearby access point may be using the same wireless channel.
+The Raspberry Pi may not be reachable. A mobile network may have a weak signal
+even though the phone shows that mobile data is connected.
+
+Trinetra measures these different layers separately. It then brings the results
+together and gives an evidence-based explanation of the likely problem.
+
+The system is portable. It is not designed only for one home. We can carry the
+Raspberry Pi and ESP32 probes to a college, office, hostel, laboratory, shop,
+or another building. At each location, we can create a new survey session and
+compare the results.
+
+The main idea is simple:
+
+  Measure the right evidence -> store it -> compare the layers -> explain the fault.
+
+
+2. THE PROBLEM WE ARE SOLVING
+==============================
+
+Network problems are usually described in a very general way:
+
+  - "The Internet is slow."
+  - "The Wi-Fi is not working."
+  - "The video keeps buffering."
+  - "The connection works in one room but not another."
+
+These descriptions do not identify the actual cause.
+
+For example, imagine a user in a classroom. The laptop shows two bars of
+Wi-Fi, so the user believes that the router is the problem. In reality, there
+may be three different situations:
+
+  Situation 1: The wireless signal is weak in that classroom.
+  Situation 2: The wireless signal is good, but the local router is overloaded.
+  Situation 3: The Wi-Fi and router are good, but the ISP connection is slow.
+
+All three situations feel similar to the user, but they need different
+solutions. Moving an access point will not solve an ISP outage. Changing a
+wireless channel will not solve a damaged Ethernet cable. Restarting the
+router will not improve a weak mobile signal.
+
+Trinetra solves this identification problem by checking the network in layers.
+It measures the wireless environment, the local gateway, the Raspberry Pi,
+and the outside Internet path. It can also receive cellular information from
+a phone when the project is testing Jio, BSNL, or another mobile carrier.
+
+
+3. WHAT ALREADY EXISTS
+=======================
+
+Several tools already exist, but they normally focus on only one part of the
+problem.
+
+3.1 Speed-test applications
+
+Applications such as speed-test tools measure download speed, upload speed,
+latency, and sometimes packet loss. They are useful for checking the Internet
+path, but they usually cannot tell whether the problem is caused by Wi-Fi,
+the router, the ISP, or the device itself.
+
+3.2 Wi-Fi analyzer applications
+
+Wi-Fi analyzer applications show signal strength, nearby access points, and
+wireless channels. They are useful for finding coverage holes and interference.
+However, they generally do not measure the complete route from the sensor to
+the router, from the router to the Raspberry Pi, and from the Pi to the
+Internet.
+
+3.3 Router and ISP dashboards
+
+Router dashboards may show connected devices, link speed, or Internet status.
+They normally do not measure conditions at several physical points in a
+building. They also cannot independently confirm what a user experiences in a
+particular room.
+
+3.4 Monitoring platforms
+
+Platforms such as Grafana, Zabbix, and other monitoring systems can display
+time-series data. They are powerful, but they require a data source and are
+usually configured for fixed infrastructure. They do not automatically give a
+portable, simple explanation of a field problem.
+
+3.5 Mobile-network applications
+
+Mobile applications can display carrier name, cell ID, LTE/5G type, RSRP,
+RSRQ, and other radio values. However, these applications usually display the
+information on the phone. They do not automatically connect the cellular
+measurements with the Wi-Fi and WAN measurements collected by Trinetra
+system.
+
+Trinetra does not claim that these existing tools are useless. Instead, it
+combines their most useful ideas into one portable measurement and explanation
+workflow.
+
+
+4. OUR PROPOSED SOLUTION
+========================
+
+Trinetra uses three main types of measurement:
+
+  1. ESP32 Wi-Fi probes measure the local wireless and LAN conditions.
+  2. Raspberry Pi measures the WAN and Internet conditions.
+  3. A phone companion workflow reports cellular and location information.
+
+The ESP32 probes are placed at different locations. Each probe measures its
+Wi-Fi signal and tests the local network path. The probes send their readings
+to the Raspberry Pi using MQTT.
+
+The Raspberry Pi acts as the central collector. It receives the MQTT messages,
+runs its own WAN tests, and stores all measurements in InfluxDB. The dashboard
+reads the stored live data and presents it in a simple form.
+
+Every measurement can include:
+
+  - probe ID;
+  - site ID;
+  - session ID;
+  - location ID;
+  - timestamp;
+  - Wi-Fi or phone radio values;
+  - local network measurements;
+  - WAN measurements;
+  - fault class when known.
+
+This identity information is important because the system is portable. Data
+from a college survey must not be mixed silently with data from a home survey.
+
+
+5. SYSTEM ARCHITECTURE
+======================
+
+The complete architecture is:
+
+  [ESP32 Probe 1] -----\
+  [ESP32 Probe 2] ------> Wi-Fi network -> MQTT broker on Raspberry Pi
+  [ESP32 Probe 3] -----/                         |
+                                                v
+                                      MQTT-to-InfluxDB bridge
+                                                |
+                                                v
+                                          InfluxDB database
+                                                |
+                    [Raspberry Pi WAN probe] --+
+                                                |
+                    [Phone telemetry] ----------+
+                                                v
+                                      Trinetra live dashboard
+                                                |
+                                                v
+                                  Human-readable fault explanation
+
+5.1 ESP32 Wi-Fi probes
+
+The ESP32 is a low-cost wireless measurement device. It connects to the local
+Wi-Fi network and periodically measures:
+
+  - received signal strength, called RSSI;
+  - round-trip time to the local gateway;
+  - round-trip time to the Raspberry Pi;
+  - packet loss;
+  - nearby access-point counts;
+  - channel and BSSID information when available;
+  - uptime, free memory, and reconnects.
+
+The ESP32 sends this information as a JSON message over MQTT. A probe can be
+given a location such as entrance, library, classroom, or bedroom.
+
+5.2 MQTT broker
+
+Mosquitto is used as the MQTT broker. MQTT is a lightweight messaging protocol
+that works well for small devices. It lets the ESP32 publish telemetry without
+knowing how the database or dashboard works.
+
+The topics follow this general structure:
+
+  piprobe/<probe_id>/<layer>
+
+Examples include:
+
+  piprobe/esp_probe_1/wifi
+  piprobe/pi/wan
+  piprobe/phone/telemetry
+
+5.3 Raspberry Pi collector
+
+The Raspberry Pi is the central edge computer. It runs the MQTT broker, the
+MQTT-to-InfluxDB bridge, the WAN probe, and the dashboard server.
+
+The WAN probe measures the outside Internet independently of the ESP32. It
+checks the gateway, Internet latency, packet loss, DNS response time, and HTTP
+response time. This allows the system to compare local Wi-Fi evidence with
+outside Internet evidence.
+
+5.4 InfluxDB
+
+InfluxDB stores time-stamped telemetry. Each measurement is saved with fields
+and tags such as probe_id, layer, site_id, session_id, and location_id.
+
+InfluxDB is useful because Trinetra needs to answer questions such as:
+
+  - What was the signal in the last five minutes?
+  - Did packet loss start at the same time as the outage?
+  - Was the WAN slow while Wi-Fi remained healthy?
+  - Did the phone signal change when the carrier was changed?
+
+5.5 Dashboard
+
+The live dashboard is served from the Raspberry Pi. It shows current values,
+history, probe identity, fault classification, and recovery instructions.
+
+The dashboard is live-only. If the data source is unavailable, it displays a
+live error and clears the affected values. It does not replace missing values
+with fake demo numbers.
+
+
+6. HOW THE SYSTEM WORKS STEP BY STEP
+=====================================
+
+Step 1: Prepare the survey
+
+The operator connects the Pi and probes to the network being tested. A site,
+session, and location identity are selected.
+
+Step 2: Start the Pi services
+
+The Pi starts Mosquitto, InfluxDB, the MQTT bridge, the WAN probe, and the
+dashboard. The operator can check the services over SSH without needing the Pi
+desktop GUI.
+
+Step 3: ESP32 probes publish measurements
+
+Each ESP32 connects to Wi-Fi and publishes a telemetry message every few
+seconds. The message includes the probe identity and measured values.
+
+Step 4: The Pi receives and stores data
+
+The bridge subscribes to Trinetra MQTT topics, validates the numeric fields, and
+writes accepted records to InfluxDB. Messages without usable numeric telemetry
+are ignored instead of being shown as valid measurements.
+
+Step 5: The Pi performs WAN measurements
+
+The Pi independently tests the local gateway and the Internet. This provides a
+second layer of evidence. The Pi can report a healthy local Wi-Fi path even
+when Internet latency is poor.
+
+Step 6: The dashboard queries live data
+
+The dashboard discovers available probes and queries the selected time window.
+The operator can select an ESP32, the Pi WAN probe, or the phone probe.
+
+Step 7: The diagnosis engine compares layers
+
+The system checks relationships between the measurements. For example:
+
+  - weak RSSI + high gateway delay -> likely Wi-Fi coverage problem;
+  - good RSSI + high Internet delay -> likely WAN or ISP problem;
+  - good Wi-Fi + high gateway loss -> likely local router or LAN problem;
+  - weak phone RSRP + normal Wi-Fi -> likely cellular coverage weakness;
+  - no probe messages -> probe, network, MQTT, or power problem.
+
+Step 8: The operator records the result
+
+The dashboard supports history and CSV export. A survey can therefore be
+compared across locations, times, carriers, or network configurations.
+
+
+7. DIFFICULTIES FACED DURING DEVELOPMENT
+========================================
+
+7.1 Devices were on different networks
+
+The Pi sometimes used a home Wi-Fi network, while the ESP32 used a phone
+hotspot. They had different IP address ranges. The ESP32 could connect to its
+Wi-Fi but could not reach the Pi's MQTT broker.
+
+How we tackled it:
+
+  - checked the Pi interfaces and routing table;
+  - identified the active Pi address;
+  - changed the broker configuration to use the correct network;
+  - added portable broker configuration and the piprobe.local option;
+  - introduced a setup workflow instead of assuming one permanent IP.
+
+7.2 The Pi could have Internet but no ESP32 telemetry
+
+USB tethering gave the Pi Internet access, but it did not automatically place
+the Pi on the same LAN as the ESP32. This made WAN tests work while MQTT from
+the ESP32 failed.
+
+How we tackled it:
+
+  - separated Internet access from local MQTT reachability;
+  - checked wlan0, USB interfaces, routes, and MQTT listeners;
+  - documented that the Pi and ESP32 must share a reachable network;
+  - added direct MQTT monitoring commands for troubleshooting.
+
+7.3 The original dashboard used demo data
+
+An early version could display simulated scenarios. This made the interface
+look complete even when the real hardware was disconnected. That is dangerous
+for a diagnostic system because a user may believe that a made-up number is a
+real measurement.
+
+How we tackled it:
+
+  - removed normal demo controls from the live dashboard;
+  - added LIVE DATA and LIVE ERROR states;
+  - cleared metrics when the source is unavailable;
+  - displayed recovery instructions instead of fabricated values;
+  - kept the separate demo runner only for offline presentation and testing.
+
+7.4 Phone values were not available through USB tethering alone
+
+USB tethering exposes Internet connectivity, not necessarily the phone's
+carrier, GPS, SIM slot, cell ID, RSRP, RSRQ, or SINR.
+
+How we tackled it:
+
+  - used Termux and Termux:API as a free phone companion workflow;
+  - collected carrier, network type, cell, location, RSRP, and RSRQ values;
+  - accepted that SINR and SIM slot may be unavailable;
+  - showed missing values as Unavailable instead of guessing.
+
+7.5 GPS did not always return a fix
+
+Indoor GPS can return no result even when network location works.
+
+How we tackled it:
+
+  - used the network location provider when satellite GPS was unavailable;
+  - removed unsupported command options;
+  - recorded provider and accuracy so the source of the location is clear.
+
+7.6 Database versions were inconsistent
+
+The project had code using InfluxDB 1.x queries and a Docker file using
+InfluxDB 2.x buckets and Flux. This could make the database receive data while
+the dashboard showed no data.
+
+How we tackled it:
+
+  - selected InfluxDB 1.8/InfluxQL as the canonical prototype architecture;
+  - aligned Docker, Telegraf, bridge, and dashboard configuration;
+  - added deployment smoke tests to detect the mismatch.
+
+7.7 Credentials were present in development files
+
+Wi-Fi and other passwords can accidentally be copied into firmware source,
+chat messages, or reports.
+
+How we tackled it:
+
+  - removed the local Wi-Fi credential from the shared project configuration;
+  - added safe configuration templates;
+  - documented credential rotation and private configuration rules;
+  - kept hardware secrets outside the public project files.
+
+7.8 The first service and startup files were inconsistent
+
+Some files used an older project name and dangling symbolic links. The service
+installer expected one filename while the folder contained another.
+
+How we tackled it:
+
+  - created real Trinetra service and startup files;
+  - removed stale Trinetra startup links;
+  - added dependency-free smoke checks for required files and paths.
+
+
+8. HOW TRINETRA IS BETTER FOR THIS PROJECT
+==========================================
+
+Trinetra is not better than every existing network tool in every situation. Its
+advantage is the combination of measurements and the explanation workflow.
+
+8.1 Cross-layer diagnosis
+
+Most simple tools measure either Wi-Fi or Internet speed. Trinetra compares the
+wireless layer, local gateway, Pi path, WAN path, and optional cellular layer.
+
+8.2 Portable operation
+
+Site, session, and location IDs allow the same system to be carried to a new
+place. The operator can compare two buildings or two carriers using the same
+measurement structure.
+
+8.3 Low cost
+
+The system uses Raspberry Pi and ESP32 hardware rather than expensive network
+measurement appliances. Open protocols such as MQTT and InfluxDB are used.
+
+8.4 Explainable results
+
+The dashboard does not only show graphs. It connects the measurements to a
+likely fault class and explains which evidence supports the conclusion.
+
+8.5 Honest missing-data behavior
+
+Trinetra distinguishes between zero, unavailable, stale, and failed data. This
+is important because a missing measurement must not be interpreted as a good
+measurement.
+
+8.6 Extensible design
+
+New probes, phone agents, sensors, or classifiers can publish telemetry using
+the same identity and MQTT structure.
+
+
+9. CURRENT RESULTS AND STATUS
+=============================
+
+The project already contains:
+
+  - ESP32 firmware;
+  - Raspberry Pi WAN collector;
+  - MQTT broker and bridge;
+  - InfluxDB storage;
+  - live dashboard;
+  - phone telemetry integration;
+  - calibration data and analysis;
+  - rule-based and machine-learning classifiers;
+  - evaluation figures and saved model;
+  - portable survey scripts;
+  - Docker deployment configuration;
+  - project smoke checks and documentation.
+
+The live Raspberry Pi has previously confirmed:
+
+  - MQTT listening on port 1883;
+  - InfluxDB healthy on port 8086;
+  - dashboard returning HTTP 200;
+  - WAN telemetry arriving;
+  - historical ESP32 and phone probes stored in InfluxDB.
+
+The current field connection issue is not a software architecture failure. The
+Pi's wlan0 is disconnected and the phone hotspot is not visible in the Wi-Fi
+scan. The Pi still has Internet through USB tethering, but the ESP32 cannot
+reach the MQTT broker until both devices share a reachable LAN.
+
+
+10. LIMITATIONS
+===============
+
+  - The current ML evaluation uses development data and must be confirmed with
+    a real held-out field dataset.
+  - Android may not expose every cellular field on every device.
+  - GPS can be unavailable indoors.
+  - Wi-Fi and phone hotspot behavior depends on the physical location and
+    operating-system settings.
+  - MQTT anonymous mode is acceptable only for a trusted prototype LAN; a
+    public or untrusted deployment needs authentication and encryption.
+  - The system identifies likely causes from evidence. It does not guarantee
+    that a classifier has found the only possible cause.
+
+
+11. FUTURE IMPROVEMENTS
+=======================
+
+  - collect real multi-location training and test data;
+  - add secure MQTT authentication and TLS;
+  - add offline buffering on ESP32 probes;
+  - add automatic Pi discovery and QR-based setup;
+  - add a dedicated Android companion application;
+  - add battery monitoring and a portable enclosure;
+  - add maps or floor-plan visualization;
+  - improve multi-carrier Jio/BSNL comparison reports;
+  - add automated deployment tests on a real Raspberry Pi;
+  - add Git version control and continuous integration.
+
+
+12. CONCLUSION
+==============
+
+Trinetra is a low-cost portable network diagnosis system. Its main contribution
+is not just collecting Wi-Fi or Internet numbers. It combines several layers
+of evidence and explains what those layers mean together.
+
+The ESP32 shows what is happening near the user. The Raspberry Pi shows what
+is happening at the network boundary and on the Internet path. The phone can
+show cellular and location evidence. MQTT connects the devices, InfluxDB keeps
+the history, and the dashboard turns the measurements into a practical
+diagnosis.
+
+The project faced real problems involving network routing, changing IP
+addresses, unavailable phone permissions, missing GPS fixes, database-version
+mismatches, stale data, and exposed development credentials. These problems
+were handled by making the system portable, live-only, explicit about missing
+data, configurable, and testable.
+
+The final system is intended to answer a practical question:
+
+  When a network fails at this location, which layer is actually responsible?
+
+That question is the central purpose of Trinetra.

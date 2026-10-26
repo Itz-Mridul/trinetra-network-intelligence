@@ -1,0 +1,11 @@
+Section,Content
+1. Project Overview,"Title, goal and core idea"
+2. Hardware Details,Core hardware table + Cellular extension table with approximate INR costs
+3. Software Stack,"Recommended tools (Docker, MQTT, InfluxDB, Grafana, ModemManager, etc.)"
+4. How to Start & Execute,Full 6-phase roadmap (Preparation → Pi baseline → ESP32 → Cellular → Survey → Dashboard)
+5. Low-Cost Strategy,"Practical ways to keep total cost under ₹20,000"
+6. Important Distinctions & Key Points,"What each device measures, critical distinctions, and fault classification table"
+7. Network Testing Methodology,"Metrics, test types and comparison dimensions"
+8. Keywords,All major technical keywords for search/SEO/paper use
+9. Quick Start Checklist,Actionable to-do list
+10. Research & Ethics Notes,Limitations and safe-use reminders
